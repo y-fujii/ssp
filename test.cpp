@@ -1,3 +1,4 @@
+#include <vector>
 #include <ostream>
 #include <chrono>
 #include <stdio.h>
@@ -48,9 +49,9 @@ std::ostream& operator<<( std::ostream& out, ssp::array<T, N> const& arr ) {
 
 int const w = 4096, h = 4096;
 
-void parallel( ssp::vector<int>& dst ) {
+template<class View>
+void parallel( View const& dst ) {
 	using namespace ssp;
-
 
 	Runner runner;
 	runner.for_2d( 0, w, 0, h, [&]( index const& ix, index const& iy ) {
@@ -68,7 +69,7 @@ void parallel( ssp::vector<int>& dst ) {
 			im = 2.0f * re * im + y;
 			re = re2 - im2 + x;
 		}
-		// we must carefully treat NaN
+		// we must treat NaN carefully, which comes from (inf - inf).
 		dst[ix + iy * w] = where<int32_t, 4>( re2 + im2 <= 4.0f, 0, 1 );
 	} );
 }
@@ -100,7 +101,8 @@ int main() {
 	using namespace ssp;
 
 	std::vector<int32_t> dst_s( w * h );
-	ssp::vector<int32_t> dst_p( w * h );
+	//ssp::vector<int32_t> dst_p( w * h );
+	std::vector<int32_t> dst_p( w * h );
 
 	auto sTimeBgn = std::chrono::high_resolution_clock::now();
 	serial( dst_s );
@@ -108,7 +110,7 @@ int main() {
 	printf( "%ld\n", (sTimeEnd - sTimeBgn).count() );
 
 	auto pTimeBgn = std::chrono::high_resolution_clock::now();
-	parallel( dst_p );
+	parallel( view( dst_p ) );
 	auto pTimeEnd = std::chrono::high_resolution_clock::now();
 	printf( "%ld\n", (pTimeEnd - pTimeBgn).count() );
 
