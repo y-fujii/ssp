@@ -1,7 +1,7 @@
 #pragma once
 
+#include <iterator>
 #include <cstddef>
-#include <vector>
 #include <emmintrin.h>
 //#include <smmintrin.h>
 
@@ -288,24 +288,28 @@ inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const&
 	return _mm_castsi128_ps( _mm_or_si128( z0, z1 ) );
 }
 
-template<class Elem>
-struct vector: std::vector<Elem> {
-	template<class... T>
-	vector( T... args ):
-		std::vector<Elem>( args... ) {
-	}
-
-	using std::vector<Elem>::operator[];
+template<class Container, class Elem>
+struct container_view {
+	container_view( Container& c ):
+		_container( c ) {}
 
 	template<class T, int N>
-	reference<Elem, N> operator[]( array<T, N> const& idx ) {
+	reference<Elem, N> operator[]( array<T, N> const& idx ) const {
 		reference<Elem, N> ref;
 		for( int i = 0; i < N; ++i ) {
-			ref._data[i] = &(*this)[idx._data[i]];
+			ref._data[i] = &_container[idx._data[i]];
 		}
 		return ref;
 	}
+
+	private:
+		Container& _container;
 };
+
+template<class T>
+container_view<T, typename T::value_type> view( T& c ) {
+	return container_view<T, typename T::value_type>( c );
+}
 
 typedef array<int32_t, 4> index;
 
