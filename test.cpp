@@ -1,37 +1,15 @@
+#include <chrono>
 #include <vector>
 #include <ostream>
-#include <chrono>
 #include <stdio.h>
 #include "ssp.hpp"
 
 
-/*
-struct Particle {
-	float qx, qy, qz;
-	float px, py, pz;
-	float m;
-};
-
-int main() {
-	size_t const N = 16;
-	ssp::vector<Particle> srcs( N );
-	ssp::vector<float> dsts( N );
-
-	ssp::Runner runner;
-	
-	runner.for_1d( 0, N, [&]( ssp::index const& i ) {
-		auto px = srcs[i].member(&Particle::px);
-		auto py = srcs[i].member(&Particle::py);
-		auto pz = srcs[i].member(&Particle::pz);
-		dsts[i] = sqrt( px * px + py * py + pz * pz );
-
-		//auto mass = particle[i][&Particle::getMass]();
-		//auto mass = particle[i].getMass();
-	} );
-
-	return 0;
+inline uint64_t rdtsc() {
+	uint32_t lo, hi;
+	__asm__ __volatile__( "rdtsc" : "=a"(lo), "=d"(hi) );
+	return uint64_t( lo ) | (uint64_t( hi ) << 32);
 }
-*/
 
 template<class T, int N>
 std::ostream& operator<<( std::ostream& out, ssp::array<T, N> const& arr ) {
@@ -47,10 +25,11 @@ std::ostream& operator<<( std::ostream& out, ssp::array<T, N> const& arr ) {
 	return out;
 }
 
-int const w = 4096, h = 4096;
+//int const w = 4096, h = 4096;
+int const w = 8192, h = 8192;
 
 template<class View>
-void parallel( View const& dst ) {
+void test1_parallel( View const& dst ) {
 	using namespace ssp;
 
 	Runner runner;
@@ -60,7 +39,7 @@ void parallel( View const& dst ) {
 		array<float, 4> re = 0.0f;
 		array<float, 4> im = 0.0f;
 		array<float, 4> re2, im2;
-		for( int i = 0; i < 256; ++i ) {
+		for( int i = 0; i < 2; ++i ) {
 			re2 = re * re;
 			im2 = im * im;
 			if( all( re2 + im2 > 4.0f ) ) {
@@ -74,7 +53,7 @@ void parallel( View const& dst ) {
 	} );
 }
 
-void serial( std::vector<int>& dst ) {
+void test1_serial( std::vector<int>& dst ) {
 	for( int iy = 0; iy < h; ++iy ) {
 		for( int ix = 0; ix < w; ++ix ) {
 			float x = ix * (2.0f / w) - 1.0f;
@@ -83,7 +62,7 @@ void serial( std::vector<int>& dst ) {
 			float im = 0.0f;
 			float re2, im2;
 			dst[ix + iy * w] = 0;
-			for( int i = 0; i < 256; ++i ) {
+			for( int i = 0; i < 2; ++i ) {
 				re2 = re * re;
 				im2 = im * im;
 				if( re2 + im2 > 4.0f ) {
@@ -97,25 +76,103 @@ void serial( std::vector<int>& dst ) {
 	}
 }
 
+struct Vec2 {
+	float x, y;
+
+	bool operator==( Vec2 const& rhs ) {
+		return x == rhs.x && y == rhs.y;
+	}
+
+	bool operator!=( Vec2 const& rhs ) {
+		return !(*this == rhs);
+	}
+};
+
+void test0_parallel( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
+	auto srcs = ssp::view( srcv );
+	auto dsts = ssp::view( dstv );
+
+	ssp::Runner runner;
+	
+	runner.for_1d( 0, srcv.size(), [&]( ssp::index const& i ) {
+		ssp::array<float, 4> x = srcs[i].member( &Vec2::x );
+		ssp::array<float, 4> y = srcs[i].member( &Vec2::y );
+		dsts[i].member( &Vec2::x ) = x + y;
+		dsts[i].member( &Vec2::y ) = x - y;
+	} );
+}
+
+void test0_serial( std::vector<Vec2> const& srcv, std::vector<Vec2>& dstv ) {
+	for( size_t i = 0; i < srcv.size(); ++i ) {
+		float x = srcv[i].x;
+		float y = srcv[i].y;
+		dstv[i].x = x + y;
+		dstv[i].y = x - y;
+	}
+}
+
+void test0() {
+	using namespace std;
+
+	size_t const N = 1024;
+	size_t const M = 256 * 1024;
+	std::vector<Vec2> src( N );
+	std::vector<Vec2> dst_s( N );
+	std::vector<Vec2> dst_p( N );
+
+	auto sTickBgn = chrono::high_resolution_clock::now();
+	for( size_t i = 0; i < M; ++i ) {
+		test0_serial( src, dst_s );
+	}
+	auto sTickEnd = chrono::high_resolution_clock::now();
+	printf( "  serial: %lu\n", (sTickEnd - sTickBgn).count() );
+
+	auto pTickBgn = chrono::high_resolution_clock::now();
+	for( size_t i = 0; i < M; ++i ) {
+		test0_parallel( src, dst_p );
+	}
+	auto pTickEnd = chrono::high_resolution_clock::now();
+	printf( "parallel: %lu\n", (pTickEnd - pTickBgn).count() );
+
+	printf( "factor: %.2f\n",
+		double( (sTickEnd - sTickBgn).count() ) / double( (pTickEnd - pTickBgn).count() )
+	);
+
+	int count = 0;
+	for( size_t i = 0; i < N; ++i ) {
+		if( dst_s[i] != dst_p[i] ) {
+			++count;
+		}
+	}
+	printf( "#error: %d\n", count );
+}
+
 int main() {
 	using namespace ssp;
 
+	/*
 	std::vector<int32_t> dst_s( w * h );
 	//ssp::vector<int32_t> dst_p( w * h );
 	std::vector<int32_t> dst_p( w * h );
 
-	auto sTimeBgn = std::chrono::high_resolution_clock::now();
-	serial( dst_s );
-	auto sTimeEnd = std::chrono::high_resolution_clock::now();
-	printf( "%ld\n", (sTimeEnd - sTimeBgn).count() );
+	uint64_t sTickBgn = rdtsc();
+	test0_serial( dst_s );
+	test0_serial( dst_s );
+	test0_serial( dst_s );
+	test0_serial( dst_s );
+	uint64_t sTickEnd = rdtsc();
+	printf( "  serial: %lu\n", sTickEnd - sTickBgn );
 
-	auto pTimeBgn = std::chrono::high_resolution_clock::now();
-	parallel( view( dst_p ) );
-	auto pTimeEnd = std::chrono::high_resolution_clock::now();
-	printf( "%ld\n", (pTimeEnd - pTimeBgn).count() );
+	auto pTickBgn = rdtsc();
+	test0_parallel( view( dst_p ) );
+	test0_parallel( view( dst_p ) );
+	test0_parallel( view( dst_p ) );
+	test0_parallel( view( dst_p ) );
+	auto pTickEnd = rdtsc();
+	printf( "parallel: %lu\n", pTickEnd - pTickBgn );
 
 	printf( "factor: %.2f\n",
-		double( (sTimeEnd - sTimeBgn).count() ) / double( (pTimeEnd - pTimeBgn).count() )
+		double(sTickEnd - sTickBgn) / double(pTickEnd - pTickBgn)
 	);
 
 	int count = 0;
@@ -125,7 +182,9 @@ int main() {
 		}
 	}
 	printf( "#error: %d\n", count );
+	*/
+
+	test0();
 
 	return 0;
 }
-
