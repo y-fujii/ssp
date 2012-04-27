@@ -3,7 +3,7 @@
 #include <iterator>
 #include <cstddef>
 #include <emmintrin.h>
-//#include <smmintrin.h>
+#include <smmintrin.h>
 
 namespace ssp {
 
@@ -71,7 +71,7 @@ struct array<int32_t, 4> {
 	array() {}
 
 	array( int32_t x, int32_t y, int32_t z, int32_t w ) {
-		_packed = _mm_setr_epi32( x, y, z, w );
+		_packed = _mm_set_epi32( w, z, y, x );
 	}
 
 	array( int32_t x ) {
@@ -80,6 +80,8 @@ struct array<int32_t, 4> {
 
 	array( __m128i xs ):
 		_packed( xs ) {}
+
+	explicit array( array<float, 4> const& );
 
 	//private:
 		union {
@@ -93,7 +95,7 @@ struct array<float, 4> {
 	array() {}
 
 	array( float x, float y, float z, float w ) {
-		_packed = _mm_setr_ps( x, y, z, w );
+		_packed = _mm_set_ps( w, z, y, x );
 	}
 
 	array( float x ) {
@@ -103,9 +105,7 @@ struct array<float, 4> {
 	array( __m128 xs ):
 		_packed( xs ) {}
 
-	explicit array( array<int32_t, 4> const& xs ) {
-		_packed = _mm_cvtepi32_ps( xs._packed );
-	}
+	explicit array( array<int32_t, 4> const& );
 
 	//private:
 		union {
@@ -113,6 +113,14 @@ struct array<float, 4> {
 			float _data[4];
 		};
 };
+
+inline array<int32_t, 4>::array( array<float, 4> const& xs ) {
+	_packed = _mm_cvtps_epi32( xs._packed );
+}
+
+inline array<float, 4>::array( array<int32_t, 4> const& xs ) {
+	_packed = _mm_cvtepi32_ps( xs._packed );
+}
 
 inline array<float, 4> operator+( array<float, 4> const& x, array<float, 4> const& y ) {
 	return _mm_add_ps( x._packed, y._packed );
@@ -158,6 +166,14 @@ inline array<float, 4> sqrt( array<float, 4> const& x ) {
 	return _mm_sqrt_ps( x._packed );
 }
 
+inline array<float, 4> floor( array<float, 4> const& x ) {
+	return _mm_floor_ps( x._packed );
+}
+
+inline array<float, 4> ceil( array<float, 4> const& x ) {
+	return _mm_ceil_ps( x._packed );
+}
+
 inline array<float, 4> min( array<float, 4> const& x, array<float, 4> const& y ) {
 	return _mm_min_ps( x._packed, y._packed );
 }
@@ -175,13 +191,15 @@ inline array<int32_t, 4> operator-( array<int32_t, 4> const& x, array<int32_t, 4
 }
 
 inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	//return _mm_mul_epi32( x._packed, y._packed );
+	return _mm_mullo_epi32( x._packed, y._packed );
+	/*
 	return array<int32_t, 4>(
 		x._data[0] * y._data[0],
 		x._data[1] * y._data[1],
 		x._data[2] * y._data[2],
 		x._data[3] * y._data[3]
 	);
+	*/
 }
 
 inline array<int32_t, 4> operator/( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
@@ -253,21 +271,27 @@ inline array<int32_t, 4> max( array<int32_t, 4> const& x, array<int32_t, 4> cons
 */
 
 inline bool any( array<int32_t, 4> const& x ) {
+	/*
 	union {
 		int64_t array[2];
 		__m128i packed;
 	} y;
 	_mm_store_si128( &y.packed, x._packed );
 	return (y.array[0] | y.array[1]) != 0l;
+	*/
+	return _mm_movemask_epi8( x._packed ) != 0x0000;
 }
 
 inline bool all( array<int32_t, 4> const& x ) {
+	/*
 	union {
 		int64_t array[2];
 		__m128i packed;
 	} y;
 	_mm_store_si128( &y.packed, x._packed );
 	return ~(y.array[0] & y.array[1]) == 0l;
+	*/
+	return _mm_movemask_epi8( x._packed ) == 0xffff;
 }
 
 template<class T, int N>
@@ -328,11 +352,11 @@ struct Runner {
 	void for_2d( int x0, int x1, int y0, int y1, Func const& f ) {
 		index ys( 0, 0, 1, 1 );
 		index xs( 0, 1, 0, 1 );
-
 		#pragma omp parallel for schedule(guided, 1)
 		for( int y = y0; y < y1; y += 2 ) {
+			index yi = ys + y;
 			for( int x = x0; x < x1; x += 2 ) {
-				f( xs + x, ys + y );
+				f( xs + x, yi );
 			}
 		}
 	}
