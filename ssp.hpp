@@ -9,8 +9,13 @@
 namespace ssp {
 
 
-template<class, int>
-struct array;
+template<class, int> struct reference;
+template<> struct reference<int32_t, 4>;
+template<> struct reference<float, 4>;
+
+template<class, int> struct array;
+template<> struct array<int32_t, 4>;
+template<> struct array<float, 4>;
 
 template<class Elem, int N>
 struct reference {
@@ -85,13 +90,10 @@ struct array<int32_t, 4> {
 	explicit array( array<float, 4> const& );
 
 	//private:
-		/*
 		union {
 			__m128i _packed;
 			int32_t _data[4];
 		};
-		*/
-		__m128i _packed;
 };
 
 template<>
@@ -112,33 +114,54 @@ struct array<float, 4> {
 	explicit array( array<int32_t, 4> const& );
 
 	//private:
-		/*
 		union {
 			__m128 _packed;
 			float _data[4];
 		};
-		*/
-		__m128 _packed;
 };
+
+inline array<int32_t, 4>::array( array<float, 4> const& xs ) {
+	_packed = _mm_cvtps_epi32( xs._packed );
+}
+
+inline array<float, 4>::array( array<int32_t, 4> const& xs ) {
+	_packed = _mm_cvtepi32_ps( xs._packed );
+}
 
 template<>
 struct reference<float, 4> {
 	array<float, 4> const& operator=( array<float, 4> const& rhs ) {
+		/*
+		union {
+			float array[4];
+			__m128 packed;
+		} y;
+		y.packed = rhs._packed;
+		//_mm_store_ps( &y.packed, rhs._packed );
+		*_data[0] = y.array[0];
+		*_data[1] = y.array[1];
+		*_data[2] = y.array[2];
+		*_data[3] = y.array[3];
+		*/
+		// Why is this fastest?
+		float array[4] __attribute__(( aligned( 16 ) ));
+		_mm_store_ps( array, rhs._packed );
+		*_data[0] = array[0];
+		*_data[1] = array[1];
+		*_data[2] = array[2];
+		*_data[3] = array[3];
 		/*
 		*_data[0] = _mm_extract_ps( rhs._packed, 0 );
 		*_data[1] = _mm_extract_ps( rhs._packed, 1 );
 		*_data[2] = _mm_extract_ps( rhs._packed, 2 );
 		*_data[3] = _mm_extract_ps( rhs._packed, 3 );
 		*/
-		union {
-			__m128 packed;
-			int32_t array[4];
-		} y;
-		y.packed = rhs._packed;
-		*_data[0] = y.array[0];
-		*_data[1] = y.array[1];
-		*_data[2] = y.array[2];
-		*_data[3] = y.array[3];
+		/*
+		*_data[0] = rhs._data[0];
+		*_data[1] = rhs._data[1];
+		*_data[2] = rhs._data[2];
+		*_data[3] = rhs._data[3];
+		*/
 		return rhs;
 	}
 
@@ -165,14 +188,21 @@ struct reference<int32_t, 4> {
 		*_data[3] = _mm_extract_epi32( rhs._packed, 3 );
 		*/
 		union {
+			int32_t array[4]; // XXX: align
 			__m128i packed;
-			int32_t array[4];
 		} y;
-		y.packed = rhs._packed;
+		//_mm_store_si128( &y.packed, rhs._packed );
+		//y.packed = rhs._packed;
 		*_data[0] = y.array[0];
 		*_data[1] = y.array[1];
 		*_data[2] = y.array[2];
 		*_data[3] = y.array[3];
+		/*
+		*_data[0] = rhs._data[0];
+		*_data[1] = rhs._data[1];
+		*_data[2] = rhs._data[2];
+		*_data[3] = rhs._data[3];
+		*/
 		return rhs;
 	}
 
@@ -188,14 +218,6 @@ struct reference<int32_t, 4> {
 	//private:
 		int32_t* _data[4];
 };
-
-inline array<int32_t, 4>::array( array<float, 4> const& xs ) {
-	_packed = _mm_cvtps_epi32( xs._packed );
-}
-
-inline array<float, 4>::array( array<int32_t, 4> const& xs ) {
-	_packed = _mm_cvtepi32_ps( xs._packed );
-}
 
 inline array<float, 4> operator+( array<float, 4> const& x, array<float, 4> const& y ) {
 	return _mm_add_ps( x._packed, y._packed );
@@ -403,40 +425,40 @@ Result call( Func const& f, array<T, N> arg0 ) {
 
 template<class Container, class Elem>
 struct container_view {
-	container_view( Container& c ):
+	container_view( Container* c ):
 		_container( c ) {}
 
-	/*
 	template<class T, int N>
 	reference<Elem, N> operator[]( array<T, N> const& idx ) const {
 		reference<Elem, N> ref;
 		for( int i = 0; i < N; ++i ) {
-			ref._data[i] = &_container[idx._data[i]];
+			ref._data[i] = &(*_container)[idx._data[i]];
 		}
 		return ref;
 	}
-	*/
+	/*
 	reference<Elem, 4> operator[]( array<int32_t, 4> const& idx ) const {
 		union {
-			__m128i packed;
 			int32_t array[4];
+			__m128i packed;
 		} y;
 		y.packed = idx._packed;
 		reference<Elem, 4> ref;
-		ref._data[0] = &_container[y.array[0]];
-		ref._data[1] = &_container[y.array[1]];
-		ref._data[2] = &_container[y.array[2]];
-		ref._data[3] = &_container[y.array[3]];
+		ref._data[0] = &(*_container)[y.array[0]];
+		ref._data[1] = &(*_container)[y.array[1]];
+		ref._data[2] = &(*_container)[y.array[2]];
+		ref._data[3] = &(*_container)[y.array[3]];
 		return ref;
 	}
+	*/
 
 	private:
-		Container& _container;
+		Container* _container;
 };
 
 template<class T>
 container_view<T, typename T::value_type> view( T& c ) {
-	return container_view<T, typename T::value_type>( c );
+	return container_view<T, typename T::value_type>( &c );
 }
 
 typedef array<int32_t, 4> index;
