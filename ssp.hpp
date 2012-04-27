@@ -2,6 +2,7 @@
 
 #include <iterator>
 #include <cstddef>
+#include <cassert>
 #include <emmintrin.h>
 #include <smmintrin.h>
 
@@ -30,7 +31,7 @@ struct reference {
 	}
 
 	template<class T, class U>
-	reference<U, N> member( U T::*m ) {
+	reference<U, N> member( U T::*m ) const {
 		reference<U, N> ref;
 		for( int i = 0; i < N; ++i ) {
 			ref._data[i] = &(_data[i]->*m);
@@ -84,10 +85,13 @@ struct array<int32_t, 4> {
 	explicit array( array<float, 4> const& );
 
 	//private:
+		/*
 		union {
 			__m128i _packed;
 			int32_t _data[4];
 		};
+		*/
+		__m128i _packed;
 };
 
 template<>
@@ -108,10 +112,81 @@ struct array<float, 4> {
 	explicit array( array<int32_t, 4> const& );
 
 	//private:
+		/*
 		union {
 			__m128 _packed;
 			float _data[4];
 		};
+		*/
+		__m128 _packed;
+};
+
+template<>
+struct reference<float, 4> {
+	array<float, 4> const& operator=( array<float, 4> const& rhs ) {
+		/*
+		*_data[0] = _mm_extract_ps( rhs._packed, 0 );
+		*_data[1] = _mm_extract_ps( rhs._packed, 1 );
+		*_data[2] = _mm_extract_ps( rhs._packed, 2 );
+		*_data[3] = _mm_extract_ps( rhs._packed, 3 );
+		*/
+		union {
+			__m128 packed;
+			int32_t array[4];
+		} y;
+		y.packed = rhs._packed;
+		*_data[0] = y.array[0];
+		*_data[1] = y.array[1];
+		*_data[2] = y.array[2];
+		*_data[3] = y.array[3];
+		return rhs;
+	}
+
+	operator array<float, 4>() const {
+		return array<float, 4>(
+			*_data[0],
+			*_data[1],
+			*_data[2],
+			*_data[3]
+		);
+	}
+
+	//private:
+		float* _data[4];
+};
+
+template<>
+struct reference<int32_t, 4> {
+	array<int32_t, 4> const& operator=( array<int32_t, 4> const& rhs ) {
+		/*
+		*_data[0] = _mm_extract_epi32( rhs._packed, 0 );
+		*_data[1] = _mm_extract_epi32( rhs._packed, 1 );
+		*_data[2] = _mm_extract_epi32( rhs._packed, 2 );
+		*_data[3] = _mm_extract_epi32( rhs._packed, 3 );
+		*/
+		union {
+			__m128i packed;
+			int32_t array[4];
+		} y;
+		y.packed = rhs._packed;
+		*_data[0] = y.array[0];
+		*_data[1] = y.array[1];
+		*_data[2] = y.array[2];
+		*_data[3] = y.array[3];
+		return rhs;
+	}
+
+	operator array<int32_t, 4>() const {
+		return array<int32_t, 4>(
+			*_data[0],
+			*_data[1],
+			*_data[2],
+			*_data[3]
+		);
+	}
+
+	//private:
+		int32_t* _data[4];
 };
 
 inline array<int32_t, 4>::array( array<float, 4> const& xs ) {
@@ -166,6 +241,7 @@ inline array<float, 4> sqrt( array<float, 4> const& x ) {
 	return _mm_sqrt_ps( x._packed );
 }
 
+#if defined( __SSE4_1__ )
 inline array<float, 4> floor( array<float, 4> const& x ) {
 	return _mm_floor_ps( x._packed );
 }
@@ -173,6 +249,7 @@ inline array<float, 4> floor( array<float, 4> const& x ) {
 inline array<float, 4> ceil( array<float, 4> const& x ) {
 	return _mm_ceil_ps( x._packed );
 }
+#endif
 
 inline array<float, 4> min( array<float, 4> const& x, array<float, 4> const& y ) {
 	return _mm_min_ps( x._packed, y._packed );
@@ -191,17 +268,19 @@ inline array<int32_t, 4> operator-( array<int32_t, 4> const& x, array<int32_t, 4
 }
 
 inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
+#if defined( __SSE4_1__ )
 	return _mm_mullo_epi32( x._packed, y._packed );
-	/*
+#else
 	return array<int32_t, 4>(
 		x._data[0] * y._data[0],
 		x._data[1] * y._data[1],
 		x._data[2] * y._data[2],
 		x._data[3] * y._data[3]
 	);
-	*/
+#endif
 }
 
+/*
 inline array<int32_t, 4> operator/( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 	//return _mm_div_epi32( x._packed, y._packed );
 	return array<int32_t, 4>(
@@ -211,6 +290,7 @@ inline array<int32_t, 4> operator/( array<int32_t, 4> const& x, array<int32_t, 4
 		x._data[3] / y._data[3]
 	);
 }
+*/
 
 inline array<int32_t, 4> operator&( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 	return _mm_and_si128( x._packed, y._packed );
@@ -312,17 +392,41 @@ inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const&
 	return _mm_castsi128_ps( _mm_or_si128( z0, z1 ) );
 }
 
+// XXX: use variadic template
+template<class Result, class Func, class T, int N>
+Result call( Func const& f, array<T, N> arg0 ) {
+	array<Result, N> result;
+	for( int i = 0; i < N; ++i ) {
+		result._data[i] = f( arg0._data[i] );
+	}
+}
+
 template<class Container, class Elem>
 struct container_view {
 	container_view( Container& c ):
 		_container( c ) {}
 
+	/*
 	template<class T, int N>
 	reference<Elem, N> operator[]( array<T, N> const& idx ) const {
 		reference<Elem, N> ref;
 		for( int i = 0; i < N; ++i ) {
 			ref._data[i] = &_container[idx._data[i]];
 		}
+		return ref;
+	}
+	*/
+	reference<Elem, 4> operator[]( array<int32_t, 4> const& idx ) const {
+		union {
+			__m128i packed;
+			int32_t array[4];
+		} y;
+		y.packed = idx._packed;
+		reference<Elem, 4> ref;
+		ref._data[0] = &_container[y.array[0]];
+		ref._data[1] = &_container[y.array[1]];
+		ref._data[2] = &_container[y.array[2]];
+		ref._data[3] = &_container[y.array[3]];
 		return ref;
 	}
 
@@ -339,23 +443,23 @@ typedef array<int32_t, 4> index;
 
 struct Runner {
 	template<class Func>
-	void for_1d( int x0, int x1, Func const& f ) {
+	void for_1d( int32_t x0, int32_t x1, Func const& f ) {
 		index xs( 0, 1, 2, 3 );
 
 		#pragma omp parallel for schedule(guided, 1)
-		for( int x = x0; x < x1; x += 4 ) {
+		for( int32_t x = x0; x < x1; x += 4 ) {
 			f( xs + x );
 		}
 	}
 
 	template<class Func>
-	void for_2d( int x0, int x1, int y0, int y1, Func const& f ) {
+	void for_2d( int32_t x0, int32_t x1, int32_t y0, int32_t y1, Func const& f ) {
 		index ys( 0, 0, 1, 1 );
 		index xs( 0, 1, 0, 1 );
 		#pragma omp parallel for schedule(guided, 1)
-		for( int y = y0; y < y1; y += 2 ) {
+		for( int32_t y = y0; y < y1; y += 2 ) {
 			index yi = ys + y;
-			for( int x = x0; x < x1; x += 2 ) {
+			for( int32_t x = x0; x < x1; x += 2 ) {
 				f( xs + x, yi );
 			}
 		}
