@@ -88,6 +88,17 @@ struct Vec2 {
 	}
 };
 
+/*
+template<class Array>
+struct ssp_traits<Vec2> {
+	ssp_traits<Vec2>( Array* self ):
+		x( self ),
+		y( self ) {}
+	define_member<Array, &Vec2::x> x;
+	define_member<Array, &Vec2::y> y;
+};
+*/
+
 void test0_parallel( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
 	auto srcs = ssp::view( srcv );
 	auto dsts = ssp::view( dstv );
@@ -97,11 +108,70 @@ void test0_parallel( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
 	runner.for_1d( 0, srcv.size(), [&]( ssp::index const& i ) {
 		ssp::array<float, 4> x = srcs[i].member( &Vec2::x );
 		ssp::array<float, 4> y = srcs[i].member( &Vec2::y );
+		/*
+		ssp::array<float, 4> y = srcs[i].memfun( &Vec2::getPos )();
+		ssp::array<float, 4> y = call( bind( &Vec2::getPos ), srcs[i] );
+		*/
 		dsts[i].member( &Vec2::x ) = x + y;
 		dsts[i].member( &Vec2::y ) = x - y;
 	} );
 }
 
+void test0_parallel_opt( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
+	ssp::Runner runner;
+	
+	runner.for_1d( 0, srcv.size(), [&]( ssp::index const& i ) {
+		ssp::array<float, 4> x(
+			srcv[i._data[0]].x,
+			srcv[i._data[1]].x,
+			srcv[i._data[2]].x,
+			srcv[i._data[3]].x
+		);
+		ssp::array<float, 4> y(
+			srcv[i._data[0]].y,
+			srcv[i._data[1]].y,
+			srcv[i._data[2]].y,
+			srcv[i._data[3]].y
+		);
+		ssp::array<float, 4> u = x + y;
+		ssp::array<float, 4> v = x - y;
+		dstv[i._data[0]].x = u._data[0];
+		dstv[i._data[1]].x = u._data[1];
+		dstv[i._data[2]].x = u._data[2];
+		dstv[i._data[3]].x = u._data[3];
+		dstv[i._data[0]].y = v._data[0];
+		dstv[i._data[1]].y = v._data[1];
+		dstv[i._data[2]].y = v._data[2];
+		dstv[i._data[3]].y = v._data[3];
+	} );
+}
+
+void test0_parallel_opt2( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
+	for( size_t i = 0; i < srcv.size(); i += 4 ) {
+		ssp::array<float, 4> x(
+			srcv[i + 0].x,
+			srcv[i + 1].x,
+			srcv[i + 2].x,
+			srcv[i + 3].x
+		);
+		ssp::array<float, 4> y(
+			srcv[i + 0].y,
+			srcv[i + 1].y,
+			srcv[i + 2].y,
+			srcv[i + 3].y
+		);
+		ssp::array<float, 4> u = x + y;
+		ssp::array<float, 4> v = x - y;
+		dstv[i + 0].x = u._data[0];
+		dstv[i + 1].x = u._data[1];
+		dstv[i + 2].x = u._data[2];
+		dstv[i + 3].x = u._data[3];
+		dstv[i + 0].y = v._data[0];
+		dstv[i + 1].y = v._data[1];
+		dstv[i + 2].y = v._data[2];
+		dstv[i + 3].y = v._data[3];
+	}
+}
 void test0_serial( std::vector<Vec2> const& srcv, std::vector<Vec2>& dstv ) {
 	for( size_t i = 0; i < srcv.size(); ++i ) {
 		float x = srcv[i].x;
@@ -120,19 +190,19 @@ void test0() {
 	std::vector<Vec2> dst_s( N );
 	std::vector<Vec2> dst_p( N );
 
+	auto pTickBgn = chrono::high_resolution_clock::now();
+	for( size_t i = 0; i < M; ++i ) {
+		test0_parallel_opt2( src, dst_p );
+	}
+	auto pTickEnd = chrono::high_resolution_clock::now();
+	printf( "parallel: %lu\n", (pTickEnd - pTickBgn).count() );
+
 	auto sTickBgn = chrono::high_resolution_clock::now();
 	for( size_t i = 0; i < M; ++i ) {
 		test0_serial( src, dst_s );
 	}
 	auto sTickEnd = chrono::high_resolution_clock::now();
 	printf( "  serial: %lu\n", (sTickEnd - sTickBgn).count() );
-
-	auto pTickBgn = chrono::high_resolution_clock::now();
-	for( size_t i = 0; i < M; ++i ) {
-		test0_parallel( src, dst_p );
-	}
-	auto pTickEnd = chrono::high_resolution_clock::now();
-	printf( "parallel: %lu\n", (pTickEnd - pTickBgn).count() );
 
 	printf( "factor: %.2f\n",
 		double( (sTickEnd - sTickBgn).count() ) / double( (pTickEnd - pTickBgn).count() )

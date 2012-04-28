@@ -192,7 +192,7 @@ struct reference<int32_t, 4> {
 			__m128i packed;
 		} y;
 		//_mm_store_si128( &y.packed, rhs._packed );
-		//y.packed = rhs._packed;
+		y.packed = rhs._packed;
 		*_data[0] = y.array[0];
 		*_data[1] = y.array[1];
 		*_data[2] = y.array[2];
@@ -415,7 +415,7 @@ inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const&
 }
 
 // XXX: use variadic template
-template<class Result, class Func, class T, int N>
+template<class Result, int N, class T,  class Func>
 Result call( Func const& f, array<T, N> arg0 ) {
 	array<Result, N> result;
 	for( int i = 0; i < N; ++i ) {
