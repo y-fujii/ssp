@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cassert>
 #include <emmintrin.h>
+#include <pmmintrin.h>
 #include <smmintrin.h>
 
 namespace ssp {
@@ -131,31 +132,16 @@ inline array<float, 4>::array( array<int32_t, 4> const& xs ) {
 template<>
 struct reference<float, 4> {
 	array<float, 4> const& operator=( array<float, 4> const& rhs ) {
-		/*
+		// Why is this fastest?
 		union {
 			float array[4];
 			__m128 packed;
 		} y;
 		y.packed = rhs._packed;
-		//_mm_store_ps( &y.packed, rhs._packed );
 		*_data[0] = y.array[0];
 		*_data[1] = y.array[1];
 		*_data[2] = y.array[2];
 		*_data[3] = y.array[3];
-		*/
-		// Why is this fastest?
-		float array[4] __attribute__(( aligned( 16 ) ));
-		_mm_store_ps( array, rhs._packed );
-		*_data[0] = array[0];
-		*_data[1] = array[1];
-		*_data[2] = array[2];
-		*_data[3] = array[3];
-		/*
-		*_data[0] = _mm_extract_ps( rhs._packed, 0 );
-		*_data[1] = _mm_extract_ps( rhs._packed, 1 );
-		*_data[2] = _mm_extract_ps( rhs._packed, 2 );
-		*_data[3] = _mm_extract_ps( rhs._packed, 3 );
-		*/
 		/*
 		*_data[0] = rhs._data[0];
 		*_data[1] = rhs._data[1];
@@ -181,17 +167,10 @@ struct reference<float, 4> {
 template<>
 struct reference<int32_t, 4> {
 	array<int32_t, 4> const& operator=( array<int32_t, 4> const& rhs ) {
-		/*
-		*_data[0] = _mm_extract_epi32( rhs._packed, 0 );
-		*_data[1] = _mm_extract_epi32( rhs._packed, 1 );
-		*_data[2] = _mm_extract_epi32( rhs._packed, 2 );
-		*_data[3] = _mm_extract_epi32( rhs._packed, 3 );
-		*/
 		union {
-			int32_t array[4]; // XXX: align
+			int32_t array[4];
 			__m128i packed;
 		} y;
-		//_mm_store_si128( &y.packed, rhs._packed );
 		y.packed = rhs._packed;
 		*_data[0] = y.array[0];
 		*_data[1] = y.array[1];
@@ -372,7 +351,7 @@ inline array<int32_t, 4> max( array<int32_t, 4> const& x, array<int32_t, 4> cons
 }
 */
 
-inline bool any( array<int32_t, 4> const& x ) {
+inline bool any_of( array<int32_t, 4> const& x ) {
 	/*
 	union {
 		int64_t array[2];
@@ -384,7 +363,7 @@ inline bool any( array<int32_t, 4> const& x ) {
 	return _mm_movemask_epi8( x._packed ) != 0x0000;
 }
 
-inline bool all( array<int32_t, 4> const& x ) {
+inline bool all_of( array<int32_t, 4> const& x ) {
 	/*
 	union {
 		int64_t array[2];
@@ -394,6 +373,14 @@ inline bool all( array<int32_t, 4> const& x ) {
 	return ~(y.array[0] & y.array[1]) == 0l;
 	*/
 	return _mm_movemask_epi8( x._packed ) == 0xffff;
+}
+
+inline bool none_of( array<int32_t, 4> const& x ) {
+	return _mm_movemask_epi8( x._packed ) == 0x0000;
+}
+
+inline bool nall_of( array<int32_t, 4> const& x ) {
+	return _mm_movemask_epi8( x._packed ) != 0xffff;
 }
 
 template<class T, int N>
