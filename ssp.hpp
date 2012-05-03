@@ -206,6 +206,14 @@ inline array<float, 4> operator-( array<float, 4> const& x, array<float, 4> cons
 	return _mm_sub_ps( x._packed, y._packed );
 }
 
+inline array<float, 4> operator+( array<float, 4> const& x ) {
+	return x;
+}
+
+inline array<float, 4> operator-( array<float, 4> const& x ) {
+	return array<float, 4>( 0.0f ) - x;
+}
+
 inline array<float, 4> operator*( array<float, 4> const& x, array<float, 4> const& y ) {
 	return _mm_mul_ps( x._packed, y._packed );
 }
