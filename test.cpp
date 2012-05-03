@@ -42,7 +42,7 @@ void test1_parallel( View const& dst ) {
 		for( int i = 0; i < 2; ++i ) {
 			re2 = re * re;
 			im2 = im * im;
-			if( all( re2 + im2 > 4.0f ) ) {
+			if( all_of( re2 + im2 > 4.0f ) ) {
 				break;
 			}
 			im = 2.0f * re * im + y;
@@ -73,6 +73,27 @@ void test1_serial( std::vector<int>& dst ) {
 				re = re2 - im2 + x;
 			}
 		}
+	}
+}
+
+template<class Vector>
+Vector factorial_parallel( Vector const& n ) {
+	if( all_of( n <= 1 ) ) {
+		return 1;
+	}
+	return where( n <= 1,
+		1,
+		n * factorial_parallel( n - 1 )
+	);
+}
+
+template<class Vector>
+Vector factorial_serial( Vector const& n ) {
+	if( n <= 1 ) {
+		return 1;
+	}
+	else {
+		return n * factorial_serial( n - 1 );
 	}
 }
 
@@ -184,15 +205,15 @@ void test0_serial( std::vector<Vec2> const& srcv, std::vector<Vec2>& dstv ) {
 void test0() {
 	using namespace std;
 
-	size_t const N = 1024;
-	size_t const M = 256 * 1024;
+	size_t const N = 256 * 1024; // larger than L2 cache
+	size_t const M = 1024;
 	std::vector<Vec2> src( N );
 	std::vector<Vec2> dst_s( N );
 	std::vector<Vec2> dst_p( N );
 
 	auto pTickBgn = chrono::high_resolution_clock::now();
 	for( size_t i = 0; i < M; ++i ) {
-		test0_parallel_opt2( src, dst_p );
+		test0_parallel( src, dst_p );
 	}
 	auto pTickEnd = chrono::high_resolution_clock::now();
 	printf( "parallel: %lu\n", (pTickEnd - pTickBgn).count() );
