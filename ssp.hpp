@@ -87,7 +87,7 @@ struct array<int32_t, 4> {
 		_packed = _mm_set1_epi32( x );
 	}
 
-	/*explicit*/ array( __m128i xs ):
+	explicit array( __m128i xs ):
 		_packed( xs ) {}
 
 	explicit array( array<float, 4> const& );
@@ -111,7 +111,7 @@ struct array<float, 4> {
 		_packed = _mm_set1_ps( x );
 	}
 
-	/*explicit*/ array( __m128 xs ):
+	explicit array( __m128 xs ):
 		_packed( xs ) {}
 
 	explicit array( array<int32_t, 4> const& );
@@ -204,11 +204,13 @@ template<class T, int N>
 array<T, N> where( array<int32_t, N> const&, array<T, N> const&, array<T, N> const& );
 
 inline array<float, 4> operator+( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_add_ps( x._packed, y._packed );
+	__m128 z = _mm_add_ps( x._packed, y._packed );
+	return array<float, 4>( z );
 }
 
 inline array<float, 4> operator-( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_sub_ps( x._packed, y._packed );
+	__m128 z = _mm_sub_ps( x._packed, y._packed );
+	return array<float, 4>( z );
 }
 
 inline array<float, 4> operator+( array<float, 4> const& x ) {
@@ -216,69 +218,85 @@ inline array<float, 4> operator+( array<float, 4> const& x ) {
 }
 
 inline array<float, 4> operator-( array<float, 4> const& x ) {
-	return _mm_sub_ps( _mm_setzero_ps(), x._packed );
+	__m128 z = _mm_sub_ps( _mm_setzero_ps(), x._packed );
+	return array<float, 4>( z );
 }
 
 inline array<float, 4> operator*( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_mul_ps( x._packed, y._packed );
+	__m128 z = _mm_mul_ps( x._packed, y._packed );
+	return array<float, 4>( z );
 }
 
 inline array<float, 4> operator/( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_div_ps( x._packed, y._packed );
+	__m128 z = _mm_div_ps( x._packed, y._packed );
+	return array<float, 4>( z );
 }
 
 inline array<int32_t, 4> operator==( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_castps_si128( _mm_cmpeq_ps( x._packed, y._packed ) );
+	__m128i z = _mm_castps_si128( _mm_cmpeq_ps( x._packed, y._packed ) );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator!=( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_castps_si128( _mm_cmpneq_ps( x._packed, y._packed ) );
+	__m128i z = _mm_castps_si128( _mm_cmpneq_ps( x._packed, y._packed ) );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator<( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_castps_si128( _mm_cmplt_ps( x._packed, y._packed ) );
+	__m128i z = _mm_castps_si128( _mm_cmplt_ps( x._packed, y._packed ) );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator>( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_castps_si128( _mm_cmpgt_ps( x._packed, y._packed ) );
+	__m128i z = _mm_castps_si128( _mm_cmpgt_ps( x._packed, y._packed ) );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator<=( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_castps_si128( _mm_cmple_ps( x._packed, y._packed ) );
+	__m128i z = _mm_castps_si128( _mm_cmple_ps( x._packed, y._packed ) );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator>=( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_castps_si128( _mm_cmpge_ps( x._packed, y._packed ) );
+	__m128i z = _mm_castps_si128( _mm_cmpge_ps( x._packed, y._packed ) );
+	return array<int32_t, 4>( z );
 }
 
 inline array<float, 4> sqrt( array<float, 4> const& x ) {
-	return _mm_sqrt_ps( x._packed );
+	__m128 z = _mm_sqrt_ps( x._packed );
+	return array<float, 4>( z );
 }
 
 #if defined( __SSE4_1__ )
 inline array<float, 4> floor( array<float, 4> const& x ) {
-	return _mm_floor_ps( x._packed );
+	__m128 z = _mm_floor_ps( x._packed );
+	return array<float, 4>( z );
 }
 
 inline array<float, 4> ceil( array<float, 4> const& x ) {
-	return _mm_ceil_ps( x._packed );
+	__m128 z = _mm_ceil_ps( x._packed );
+	return array<float, 4>( z );
 }
 #endif
 
 inline array<float, 4> min( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_min_ps( x._packed, y._packed );
+	__m128 z = _mm_min_ps( x._packed, y._packed );
+	return array<float, 4>( z );
 }
 
 inline array<float, 4> max( array<float, 4> const& x, array<float, 4> const& y ) {
-	return _mm_max_ps( x._packed, y._packed );
+	__m128 z = _mm_max_ps( x._packed, y._packed );
+	return array<float, 4>( z );
 }
 
 inline array<int32_t, 4> operator+( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_add_epi32( x._packed, y._packed );
+	__m128i z = _mm_add_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator-( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_sub_epi32( x._packed, y._packed );
+	__m128i z = _mm_sub_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator+( array<int32_t, 4> const& x ) {
@@ -286,12 +304,14 @@ inline array<int32_t, 4> operator+( array<int32_t, 4> const& x ) {
 }
 
 inline array<int32_t, 4> operator-( array<int32_t, 4> const& x ) {
-	return _mm_sub_epi32( _mm_setzero_si128(), x._packed );
+	__m128i z = _mm_sub_epi32( _mm_setzero_si128(), x._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 #if defined( __SSE4_1__ )
-	return _mm_mullo_epi32( x._packed, y._packed );
+	__m128i z = _mm_mullo_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 #elif 1
 	__m128i ylo = y._packed;
 	ylo = _mm_shufflelo_epi16( ylo, _MM_SHUFFLE( 0, 0, 2, 2 ) );
@@ -299,7 +319,7 @@ inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4
 	__m128i yhi = y._packed;
 	yhi = _mm_shufflelo_epi16( yhi, _MM_SHUFFLE( 1, 1, 3, 3 ) );
 	yhi = _mm_shufflehi_epi16( yhi, _MM_SHUFFLE( 1, 1, 3, 3 ) );
-	return _mm_add_epi16(
+	__m128i z = _mm_add_epi16(
 		_mm_mullo_epi16( x._packed, ylo ),
 		_mm_slli_epi32(
 			_mm_add_epi16(
@@ -309,6 +329,7 @@ inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4
 			16
 		)
 	);
+	return array<int32_t, 4>( z );
 #else
 	return array<int32_t, 4>(
 		x._data[0] * y._data[0],
@@ -332,28 +353,33 @@ inline array<int32_t, 4> operator/( array<int32_t, 4> const& x, array<int32_t, 4
 */
 
 inline array<int32_t, 4> operator&( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_and_si128( x._packed, y._packed );
+	__m128i z = _mm_and_si128( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator|( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_or_si128( x._packed, y._packed );
+	__m128i z = _mm_or_si128( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator^( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_xor_si128( x._packed, y._packed );
+	__m128i z = _mm_xor_si128( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator~( array<int32_t, 4> const& x ) {
 	#pragma GCC diagnostic ignored "-Wuninitialized"
-	__m128i z;
-	return _mm_xor_si128(
+	__m128i t;
+	__m128i z = _mm_xor_si128(
 		x._packed,
-		_mm_cmpeq_epi32( z, z )
+		_mm_cmpeq_epi32( t, t )
 	);
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator==( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_cmpeq_epi32( x._packed, y._packed );
+	__m128i z = _mm_cmpeq_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator!=( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
@@ -362,11 +388,13 @@ inline array<int32_t, 4> operator!=( array<int32_t, 4> const& x, array<int32_t, 
 }
 
 inline array<int32_t, 4> operator<( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_cmplt_epi32( x._packed, y._packed );
+	__m128i z = _mm_cmplt_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator>( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_cmpgt_epi32( x._packed, y._packed );
+	__m128i z = _mm_cmpgt_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 }
 
 inline array<int32_t, 4> operator<=( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
@@ -419,19 +447,22 @@ inline array<int32_t, 4> where( array<int32_t, 4> const& c, array<int32_t, 4> co
 	// return (c & x) | (~c & y);
 	__m128i z0 = _mm_and_si128( c._packed, x._packed );
 	__m128i z1 = _mm_andnot_si128( c._packed, y._packed );
-	return _mm_or_si128( z0, z1 );
+	__m128i z2 = _mm_or_si128( z0, z1 );
+	return array<int32_t, 4>( z2 );
 }
 
 template<>
 inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const& x, array<float, 4> const& y ) {
 	__m128i z0 = _mm_and_si128( c._packed, _mm_castps_si128( x._packed ) );
 	__m128i z1 = _mm_andnot_si128( c._packed, _mm_castps_si128( y._packed ) );
-	return _mm_castsi128_ps( _mm_or_si128( z0, z1 ) );
+	__m128  z2 = _mm_castsi128_ps( _mm_or_si128( z0, z1 ) );
+	return array<float, 4>( z2 );
 }
 
 inline array<int32_t, 4> min( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 #if defined( __SSE4_1__ )
-	return _mm_min_epi32( x._packed, y._packed );
+	__m128i z = _mm_min_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 #else
 	return where( x < y, x, y );
 #endif
@@ -439,7 +470,8 @@ inline array<int32_t, 4> min( array<int32_t, 4> const& x, array<int32_t, 4> cons
 
 inline array<int32_t, 4> max( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 #if defined( __SSE4_1__ )
-	return _mm_max_epi32( x._packed, y._packed );
+	__m128i z = _mm_max_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
 #else
 	return where( x < y, y, x );
 #endif
