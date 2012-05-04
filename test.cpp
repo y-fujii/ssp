@@ -1,6 +1,7 @@
 #include <chrono>
 #include <vector>
 #include <ostream>
+#include <iostream>
 #include <stdio.h>
 #include "ssp.hpp"
 
@@ -25,8 +26,8 @@ std::ostream& operator<<( std::ostream& out, ssp::array<T, N> const& arr ) {
 	return out;
 }
 
-//int const w = 4096, h = 4096;
-int const w = 8192, h = 8192;
+int const w = 512, h = 512;
+//int const w = 8192, h = 8192;
 
 template<class View>
 void test1_parallel( View const& dst ) {
@@ -39,7 +40,7 @@ void test1_parallel( View const& dst ) {
 		array<float, 4> re = 0.0f;
 		array<float, 4> im = 0.0f;
 		array<float, 4> re2, im2;
-		for( int i = 0; i < 2; ++i ) {
+		for( int i = 0; i < 1; ++i ) {
 			re2 = re * re;
 			im2 = im * im;
 			if( all_of( re2 + im2 > 4.0f ) ) {
@@ -62,7 +63,7 @@ void test1_serial( std::vector<int>& dst ) {
 			float im = 0.0f;
 			float re2, im2;
 			dst[ix + iy * w] = 0;
-			for( int i = 0; i < 2; ++i ) {
+			for( int i = 0; i < 1; ++i ) {
 				re2 = re * re;
 				im2 = im * im;
 				if( re2 + im2 > 4.0f ) {
@@ -241,29 +242,27 @@ void test0() {
 int main() {
 	using namespace ssp;
 
-	/*
+	std::cout << array<int32_t, 4>( -4 ) * array<int32_t, 4>( 3 ) << std::endl;
+
 	std::vector<int32_t> dst_s( w * h );
-	//ssp::vector<int32_t> dst_p( w * h );
 	std::vector<int32_t> dst_p( w * h );
 
-	uint64_t sTickBgn = rdtsc();
-	test0_serial( dst_s );
-	test0_serial( dst_s );
-	test0_serial( dst_s );
-	test0_serial( dst_s );
-	uint64_t sTickEnd = rdtsc();
-	printf( "  serial: %lu\n", sTickEnd - sTickBgn );
+	auto sTickBgn = std::chrono::high_resolution_clock::now();
+	for( int i = 0; i < 1024; ++i ) {
+		test1_serial( dst_s );
+	}
+	auto sTickEnd = std::chrono::high_resolution_clock::now();
+	printf( "  serial: %lu\n", (sTickEnd - sTickBgn).count() );
 
-	auto pTickBgn = rdtsc();
-	test0_parallel( view( dst_p ) );
-	test0_parallel( view( dst_p ) );
-	test0_parallel( view( dst_p ) );
-	test0_parallel( view( dst_p ) );
-	auto pTickEnd = rdtsc();
-	printf( "parallel: %lu\n", pTickEnd - pTickBgn );
+	auto pTickBgn = std::chrono::high_resolution_clock::now();
+	for( int i = 0; i < 1024; ++i ) {
+		test1_parallel( view( dst_p ) );
+	}
+	auto pTickEnd = std::chrono::high_resolution_clock::now();
+	printf( "parallel: %lu\n", (pTickEnd - pTickBgn).count() );
 
 	printf( "factor: %.2f\n",
-		double(sTickEnd - sTickBgn) / double(pTickEnd - pTickBgn)
+		double( (sTickEnd - sTickBgn).count() ) / double( (pTickEnd - pTickBgn).count() )
 	);
 
 	int count = 0;
@@ -273,9 +272,8 @@ int main() {
 		}
 	}
 	printf( "#error: %d\n", count );
-	*/
 
-	test0();
+	//test0();
 
 	return 0;
 }
