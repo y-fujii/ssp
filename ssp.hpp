@@ -4,8 +4,10 @@
 #include <cstddef>
 #include <cassert>
 #include <emmintrin.h>
-#include <pmmintrin.h>
+//#include <pmmintrin.h>
+#if defined( __SSE4_1__ )
 #include <smmintrin.h>
+#endif
 
 namespace ssp {
 
@@ -85,7 +87,7 @@ struct array<int32_t, 4> {
 		_packed = _mm_set1_epi32( x );
 	}
 
-	array( __m128i xs ):
+	/*explicit*/ array( __m128i xs ):
 		_packed( xs ) {}
 
 	explicit array( array<float, 4> const& );
@@ -109,7 +111,7 @@ struct array<float, 4> {
 		_packed = _mm_set1_ps( x );
 	}
 
-	array( __m128 xs ):
+	/*explicit*/ array( __m128 xs ):
 		_packed( xs ) {}
 
 	explicit array( array<int32_t, 4> const& );
@@ -198,6 +200,9 @@ struct reference<int32_t, 4> {
 		int32_t* _data[4];
 };
 
+template<class T, int N>
+array<T, N> where( array<int32_t, N> const&, array<T, N> const&, array<T, N> const& );
+
 inline array<float, 4> operator+( array<float, 4> const& x, array<float, 4> const& y ) {
 	return _mm_add_ps( x._packed, y._packed );
 }
@@ -211,7 +216,7 @@ inline array<float, 4> operator+( array<float, 4> const& x ) {
 }
 
 inline array<float, 4> operator-( array<float, 4> const& x ) {
-	return array<float, 4>( 0.0f ) - x;
+	return _mm_sub_ps( _mm_setzero_ps(), x._packed );
 }
 
 inline array<float, 4> operator*( array<float, 4> const& x, array<float, 4> const& y ) {
@@ -276,9 +281,34 @@ inline array<int32_t, 4> operator-( array<int32_t, 4> const& x, array<int32_t, 4
 	return _mm_sub_epi32( x._packed, y._packed );
 }
 
+inline array<int32_t, 4> operator+( array<int32_t, 4> const& x ) {
+	return x;
+}
+
+inline array<int32_t, 4> operator-( array<int32_t, 4> const& x ) {
+	return _mm_sub_epi32( _mm_setzero_si128(), x._packed );
+}
+
 inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 #if defined( __SSE4_1__ )
 	return _mm_mullo_epi32( x._packed, y._packed );
+#elif 1
+	__m128i ylo = y._packed;
+	ylo = _mm_shufflelo_epi16( ylo, _MM_SHUFFLE( 0, 0, 2, 2 ) );
+	ylo = _mm_shufflehi_epi16( ylo, _MM_SHUFFLE( 0, 0, 2, 2 ) );
+	__m128i yhi = y._packed;
+	yhi = _mm_shufflelo_epi16( yhi, _MM_SHUFFLE( 1, 1, 3, 3 ) );
+	yhi = _mm_shufflehi_epi16( yhi, _MM_SHUFFLE( 1, 1, 3, 3 ) );
+	return _mm_add_epi16(
+		_mm_mullo_epi16( x._packed, ylo ),
+		_mm_slli_epi32(
+			_mm_add_epi16(
+				_mm_mulhi_epu16( x._packed, ylo ),
+				_mm_mullo_epi16( x._packed, yhi )
+			),
+			16
+		)
+	);
 #else
 	return array<int32_t, 4>(
 		x._data[0] * y._data[0],
@@ -349,16 +379,6 @@ inline array<int32_t, 4> operator>=( array<int32_t, 4> const& x, array<int32_t, 
 	return ~(x < y);
 }
 
-/*
-inline array<int32_t, 4> min( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_min_epi32( x._packed, y._packed );
-}
-
-inline array<int32_t, 4> max( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
-	return _mm_max_epi32( x._packed, y._packed );
-}
-*/
-
 inline bool any_of( array<int32_t, 4> const& x ) {
 	/*
 	union {
@@ -407,6 +427,22 @@ inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const&
 	__m128i z0 = _mm_and_si128( c._packed, _mm_castps_si128( x._packed ) );
 	__m128i z1 = _mm_andnot_si128( c._packed, _mm_castps_si128( y._packed ) );
 	return _mm_castsi128_ps( _mm_or_si128( z0, z1 ) );
+}
+
+inline array<int32_t, 4> min( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
+#if defined( __SSE4_1__ )
+	return _mm_min_epi32( x._packed, y._packed );
+#else
+	return where( x < y, x, y );
+#endif
+}
+
+inline array<int32_t, 4> max( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
+#if defined( __SSE4_1__ )
+	return _mm_max_epi32( x._packed, y._packed );
+#else
+	return where( x < y, y, x );
+#endif
 }
 
 // XXX: use variadic template
