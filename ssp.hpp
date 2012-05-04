@@ -330,6 +330,21 @@ inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4
 		)
 	);
 	return array<int32_t, 4>( z );
+#elif 1
+	#pragma GCC diagnostic ignored "-Wuninitialized"
+	__m128i t;
+	__m128i mask = _mm_srli_epi64( _mm_cmpeq_epi32( t, t ), 32 );
+
+	__m128i zlo = _mm_mul_epu32( x._packed, y._packed );
+	__m128i zhi = _mm_mul_epu32(
+		_mm_srli_si128( x._packed, 4 ),
+		_mm_srli_si128( y._packed, 4 )
+	);
+	zlo = _mm_and_si128( zlo, mask );
+	zhi = _mm_slli_si128( _mm_and_si128( zhi, mask ), 4 );
+
+	__m128i z = _mm_or_si128( zlo, zhi );
+	return array<int32_t, 4>( z );
 #else
 	return array<int32_t, 4>(
 		x._data[0] * y._data[0],
