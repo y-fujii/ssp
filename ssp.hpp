@@ -52,6 +52,29 @@ struct reference {
 };
 
 template<class Elem, int N>
+struct reference<Elem const, N> {
+	operator array<Elem, N>() const {
+		array<Elem, N> dst;
+		for( int i = 0; i < N; ++i ) {
+			dst._data[i] = *_data[i];
+		}
+		return dst;
+	}
+
+	template<class T, class U>
+	reference<U const, N> member( U T::*m ) const {
+		reference<U const, N> ref;
+		for( int i = 0; i < N; ++i ) {
+			ref._data[i] = &(_data[i]->*m);
+		}
+		return ref;
+	}
+
+	//private:
+		Elem const* _data[N];
+};
+
+template<class Elem, int N>
 struct array {
 	array() {
 	}
@@ -63,7 +86,7 @@ struct array {
 	}
 
 	template<class T, class U>
-	reference<U, N> member( U T::*m ) {
+	reference<U, N> member( U T::*m ) const {
 		reference<U, N> ref;
 		for( int i = 0; i < N; ++i ) {
 			ref._data[i] = &(_data[i].*m);
@@ -460,17 +483,19 @@ array<T, N> where( array<int32_t, N> const&, array<T, N> const&, array<T, N> con
 template<>
 inline array<int32_t, 4> where( array<int32_t, 4> const& c, array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 	// return (c & x) | (~c & y);
-	__m128i z0 = _mm_and_si128( c._packed, x._packed );
-	__m128i z1 = _mm_andnot_si128( c._packed, y._packed );
-	__m128i z2 = _mm_or_si128( z0, z1 );
+	__m128i z2 = _mm_or_si128(
+		_mm_and_si128   ( c._packed, x._packed ),
+		_mm_andnot_si128( c._packed, y._packed )
+	);
 	return array<int32_t, 4>( z2 );
 }
 
 template<>
 inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const& x, array<float, 4> const& y ) {
-	__m128i z0 = _mm_and_si128( c._packed, _mm_castps_si128( x._packed ) );
-	__m128i z1 = _mm_andnot_si128( c._packed, _mm_castps_si128( y._packed ) );
-	__m128  z2 = _mm_castsi128_ps( _mm_or_si128( z0, z1 ) );
+	__m128 z2 = _mm_castsi128_ps( _mm_or_si128(
+		_mm_and_si128   ( c._packed, _mm_castps_si128( x._packed ) ),
+		_mm_andnot_si128( c._packed, _mm_castps_si128( y._packed ) )
+	) );
 	return array<float, 4>( z2 );
 }
 
@@ -501,6 +526,14 @@ Result call( Func const& f, array<T, N> arg0 ) {
 	}
 }
 
+template<class Result, int N, class T, class U, class Func>
+Result call( Func const& f, array<T, N> arg0, array<U, N> arg1 ) {
+	array<Result, N> result;
+	for( int i = 0; i < N; ++i ) {
+		result._data[i] = f( arg0._data[i], arg1._data[i] );
+	}
+}
+
 template<class Container, class Elem>
 struct container_view {
 	container_view( Container* c ):
@@ -514,21 +547,6 @@ struct container_view {
 		}
 		return ref;
 	}
-	/*
-	reference<Elem, 4> operator[]( array<int32_t, 4> const& idx ) const {
-		union {
-			int32_t array[4];
-			__m128i packed;
-		} y;
-		y.packed = idx._packed;
-		reference<Elem, 4> ref;
-		ref._data[0] = &(*_container)[y.array[0]];
-		ref._data[1] = &(*_container)[y.array[1]];
-		ref._data[2] = &(*_container)[y.array[2]];
-		ref._data[3] = &(*_container)[y.array[3]];
-		return ref;
-	}
-	*/
 
 	private:
 		Container* _container;
@@ -537,6 +555,11 @@ struct container_view {
 template<class T>
 container_view<T, typename T::value_type> view( T& c ) {
 	return container_view<T, typename T::value_type>( &c );
+}
+
+template<class T>
+container_view<T const, typename T::value_type const> const_view( T const& c ) {
+	return container_view<T const, typename T::value_type const>( &c );
 }
 
 typedef array<int32_t, 4> index;
