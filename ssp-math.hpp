@@ -38,17 +38,17 @@ inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
 	array<float, N> x1 = where( flag, sqrt( z ), a );
 
 	array<float, N> z =
-		((((4.2163199048e-2  * x2
-	      + 2.4181311049e-2) * x2
-	      + 4.5470025998e-2) * x2
-	      + 7.4953002686e-2) * x2
-		  + 1.6666752422e-1) * x2 * x1
+		((((4.2163199048e-2f  * x2
+	      + 2.4181311049e-2f) * x2
+	      + 4.5470025998e-2f) * x2
+	      + 7.4953002686e-2f) * x2
+		  + 1.6666752422e-1f) * x2 * x1
 	      + x1;
 
 	z = where( flag, float(M_PI / 2.0) - (z + z), z );
 	z = where( a < 1e-4f, a, z );
 	z = s * z;
-	z = where( a > 1.0f, nan<float, N>(), z );
+	z = where( a > 1.0f, array<float, N>( std::numeric_limits<float>() ), z );
 	return z;
 }
 
