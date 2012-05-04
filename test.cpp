@@ -122,7 +122,7 @@ struct ssp_traits<Vec2> {
 */
 
 void test0_parallel( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
-	auto srcs = ssp::view( srcv );
+	auto srcs = ssp::const_view( srcv );
 	auto dsts = ssp::view( dstv );
 
 	ssp::Runner runner;
