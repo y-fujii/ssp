@@ -1,11 +1,12 @@
 #pragma once
 
 #include <limits>
+#include <cmath>
 #include "ssp.hpp"
 
 namespace detail {
 	#define USE_SSE2
-	#include <sse_mathfun.h>
+	#include "sse_mathfun.h"
 	#undef USE_SSE2
 }
 
@@ -29,13 +30,13 @@ template<int N>
 inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
 	using namespace ssp;
 
-	array<float, N> a = where( x > 0.0f, x, -x );
-	array<float, N> s = where( x > 0.0f, +1.0f, -1.0f );
+	array<float, N> a = abs( x );
+	array<float, N> s = where( x > 0.0f, array<float, N>( +1.0f ), -1.0f );
 
-	array<float, N> flag = a > 0.5f;
+	array<int32_t, N> flag = a > 0.5f;
 
 	array<float, N> x2 = where( flag, 0.5f * (1.0f - a), a * a );
-	array<float, N> x1 = where( flag, sqrt( z ), a );
+	array<float, N> x1 = where( flag, sqrt( x2 ), a );
 
 	array<float, N> z =
 		((((4.2163199048e-2f  * x2
@@ -48,48 +49,50 @@ inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
 	z = where( flag, float(M_PI / 2.0) - (z + z), z );
 	z = where( a < 1e-4f, a, z );
 	z = s * z;
-	z = where( a > 1.0f, array<float, N>( std::numeric_limits<float>() ), z );
+	z = where( a > 1.0f, std::numeric_limits<float>::quiet_NaN(), z );
 	return z;
 }
 
 
-/*
-float acos( float x ) {
-	float flag0 = -1.0f <= x & x <  -0.5f;
-	float flag1 = +0.5f <  x & x <= +1.0f;
-	float flag2 = -0.5f <= x & x <  +0.5f;
-	float flag3 = x < -1.0f | +1.0f < x;
+template<int N>
+inline ssp::array<float, N> acos( ssp::array<float, N> const& x ) {
+	using namespace ssp;
 
-	float y =
-		where( flag0, +x,
-		where( flag1, -x,
-		              NaN,
-		));
-	float z = sqrt( 0.5f * (1.0f + x) );
-	float u = where( flag0 | flag1, z, x );
+	array<int32_t, N> flag0 = -1.0f <= x & x <  -0.5f;
+	array<int32_t, N> flag1 = +0.5f <  x & x <= +1.0f;
+	array<int32_t, N> flag2 = -0.5f <= x & x <  +0.5f;
+	// array<int32_t, N> flag3 = x < -1.0f | +1.0f < x;
 
-	float v = asin( u );
+	array<float, N> z = sqrt( 0.5f * (1.0f - abs( x )) );
+	array<float, N> u = where( flag0 | flag1, z, x );
 
-	x = where( flag0, M_PI - 2.0f * v, v );
-	x = where( flag1,        2.0f * v, v );
-	x = where( flag2, M_PI / 2.0f - v, v );
-	x = where( flag3, NaN, x );
-	return x;
+	array<float, N> v = asin( u );
+
+	array<float, N> w = where(
+		flag0, float( M_PI ) - 2.0f * v,
+		flag1,                 2.0f * v,
+		flag2, float( M_PI / 2.0 ) - v,
+		std::numeric_limits<float>::quiet_NaN()
+	);
+	return w;
 }
 
+/*
 float atan( float x ) {
 	float sign = where( x < 0.0f, -1.0f, +1.0f );
 	float x    = where( x < 0.0f, -x   , +x    );
 
-	y = where( x > (3.0 * M_PI / 8.0), (M_PI / 2.0),
-		where( x > (1.0 * M_PI / 8.0), (M_PI / 4.0),
-		                               0.0f
-		));
+	y = where(
+		x > (3.0 * M_PI / 8.0), (M_PI / 2.0),
+		x > (1.0 * M_PI / 8.0), (M_PI / 4.0),
+								0.0f
+	);
 
-	x = where( x > (3.0 * M_PI / 8.0), -1.0f / x,
-		where( x > (1.0 * M_PI / 8.0), (x - 1.0f) / (x + 1.0f),
-		                               x
-		));
+	x = where(
+		x > (3.0 * M_PI / 8.0), -1.0f / x,
+		x > (1.0 * M_PI / 8.0), (x - 1.0f) / (x + 1.0f),
+		                        x
+	);
 
 	float z = x * x;
 	y += (((8.05374449538e-2  * z

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdio.h>
 #include "ssp.hpp"
+#include "ssp-math.hpp"
 
 
 inline uint64_t rdtsc() {
@@ -50,7 +51,7 @@ void test1_parallel( View const& dst ) {
 			re = re2 - im2 + x;
 		}
 		// we must treat NaN carefully, which comes from (inf - inf).
-		dst[ix + iy * w] = where<int32_t, 4>( re2 + im2 <= 4.0f, 0, 1 );
+		dst[ix + iy * w] = where( re2 + im2 <= 4.0f, array<int32_t, 4>( 0 ), 1 );
 	} );
 }
 
@@ -239,13 +240,30 @@ void test0() {
 	printf( "#error: %d\n", count );
 }
 
+int32_t test( int32_t x ) {
+	return x;
+}
+
+#include <unistd.h>
+
 int main() {
 	using namespace ssp;
 
+	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (1 << 31) | (126 << 23) | 0x7fffff ) );
+	std::cout << o9 << std::endl;
 	std::cout << array<int32_t, 4>( -4 ) * array<int32_t, 4>( 3 ) << std::endl;
+	std::cout << floor( array<float, 4>( -4.4 ) ) << std::endl;
+	std::cout << acos( array<float, 4>( -0.6 ) ) << std::endl;
+	std::cout << std::acos( -0.6 ) << std::endl;
+	std::cout << acos( array<float, 4>( +0.2 ) ) << std::endl;
+	std::cout << std::acos( +0.2 ) << std::endl;
+	std::cout << call<int32_t>( test, array<int32_t, 4>( -4 ) ) << std::endl;
+
 
 	std::vector<int32_t> dst_s( w * h );
 	std::vector<int32_t> dst_p( w * h );
+
+	sleep( 1 );
 
 	auto sTickBgn = std::chrono::high_resolution_clock::now();
 	for( int i = 0; i < 1024; ++i ) {
