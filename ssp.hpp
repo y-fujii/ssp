@@ -605,9 +605,9 @@ inline array<float, 4> sqrt( array<float, 4> const& x ) {
 
 inline array<float, 4> abs( array<float, 4> const& x ) {
 	return where(
-		x < 0.0f, -x,
-		x > 0.0f, +x,
-		           x // -0, +0, NaN
+		x <  0.0f, -x,
+		x == 0.0f, +0.0f, // -0, +0
+		           +x     // >0, NaN
 	);
 }
 
