@@ -249,17 +249,16 @@ int32_t test( int32_t x ) {
 int main() {
 	using namespace ssp;
 
-	/*
-	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (1 << 31) | (126 << 23) | 0x7fffff ) );
+	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (0 << 31) | (126 << 23) | 0x7fffff ) );
 	std::cout << o9 << std::endl;
 	std::cout << array<int32_t, 4>( -4 ) * array<int32_t, 4>( 3 ) << std::endl;
-	std::cout << floor( array<float, 4>( -4.4 ) ) << std::endl;
+	std::cout << floor( array<float, 4>( -4.0 ) ) << std::endl;
+	std::cout << ceil( array<float, 4>( -4.0 ) ) << std::endl;
 	std::cout << acos( array<float, 4>( -0.6 ) ) << std::endl;
 	std::cout << std::acos( -0.6 ) << std::endl;
 	std::cout << acos( array<float, 4>( +0.2 ) ) << std::endl;
 	std::cout << std::acos( +0.2 ) << std::endl;
 	std::cout << call<int32_t>( test, array<int32_t, 4>( -4 ) ) << std::endl;
-	*/
 
 
 	std::vector<int32_t> dst_s( w * h );

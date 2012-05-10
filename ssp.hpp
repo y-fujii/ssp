@@ -342,7 +342,6 @@ inline array<int32_t, 4> operator*( array<int32_t, 4> const& x, array<int32_t, 4
 	);
 	return array<int32_t, 4>( z );
 #elif 1
-	#pragma GCC diagnostic ignored "-Wuninitialized"
 	__m128i ff = _mm_cmpeq_epi32( ff, ff );
 	__m128i mask = _mm_srli_epi64( ff, 32 );
 
@@ -427,6 +426,11 @@ inline array<int32_t, 4> operator>>( array<int32_t, 4> const& x, array<int32_t, 
 
 inline array<int32_t, 4> operator<<( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
 	__m128i z = _mm_sll_epi32( x._packed, y._packed );
+	return array<int32_t, 4>( z );
+}
+
+inline array<int32_t, 4> lsr( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
+	__m128i z = _mm_srl_epi32( x._packed, y._packed );
 	return array<int32_t, 4>( z );
 }
 
@@ -608,8 +612,9 @@ inline array<float, 4> floor( array<float, 4> const& x ) {
 	__m128 z = _mm_floor_ps( x._packed );
 	return array<float, 4>( z );
 #else
-	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (1 << 31) | (126 << 23) | 0x7fffff ) );
+	// XXX: BUG
 	array<int32_t, 4> ff = (ff == ff);
+	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (1 << 31) | (126 << 23) | 0x7ffffb ) );
 	array<float, 4> z = where( x < 0.0f, x + o9, x );
 	array<int32_t, 4> e = exponent( z );
 	return where(
@@ -620,12 +625,23 @@ inline array<float, 4> floor( array<float, 4> const& x ) {
 #endif
 }
 
-#if defined( __SSE4_1__ )
 inline array<float, 4> ceil( array<float, 4> const& x ) {
+#if defined( __SSE4_1__ )
 	__m128 z = _mm_ceil_ps( x._packed );
 	return array<float, 4>( z );
-}
+#else
+	// XXX: BUG
+	array<int32_t, 4> ff = (ff == ff);
+	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (0 << 31) | (126 << 23) | 0x7ffffb ) );
+	array<float, 4> z = where( x > 0.0f, x + o9, x );
+	array<int32_t, 4> e = exponent( z );
+	return where(
+		e <  0, 0.0f * x,
+		e < 24, cast<float>( cast<int32_t>( z ) & (ff << (23 - e)) ),
+		        x // include NaN
+	);
 #endif
+}
 
 inline array<float, 4> min( array<float, 4> const& x, array<float, 4> const& y ) {
 	__m128 z = _mm_min_ps( x._packed, y._packed );
