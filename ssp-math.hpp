@@ -27,60 +27,55 @@ inline ssp::array<float, 4> log( ssp::array<float, 4> const& x ) {
 }
 
 template<int N>
-inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
+inline ssp::array<float, N> asin_core(
+	ssp::array<float, N> const& x1,
+	ssp::array<float, N> const& x2
+) {
 	using namespace ssp;
 
-	array<float, N> a = abs( x );
-	array<float, N> s = where( x > 0.0f,
-		array<float, N>( +1.0f ),
-		array<float, N>( -1.0f )
-	);
-
-	array<int32_t, N> flag = a > 0.5f;
-
-	array<float, N> x2 = where( flag, 0.5f * (1.0f - a), a * a );
-	array<float, N> x1 = where( flag, sqrt( x2 ), a );
-
 	array<float, N> z =
-		((((4.2163199048e-2f  * x2
+	    ((((4.2163199048e-2f  * x2
 	      + 2.4181311049e-2f) * x2
 	      + 4.5470025998e-2f) * x2
 	      + 7.4953002686e-2f) * x2
 		  + 1.6666752422e-1f) * x2 * x1
 	      + x1;
 
-	z = where( flag, float(M_PI / 2.0) - (z + z), z );
-	z = where( a < 1e-4f, a, z );
-	z = s * z;
-	z = where( a > 1.0f,
-		array<float, 4>( std::numeric_limits<float>::quiet_NaN() ),
-		z
-	);
-	return z;
+	return where( x2 < 1e-8f, x1, z );
 }
 
+template<int N>
+inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
+	using namespace ssp;
+
+	array<float, N> a = abs( x );
+	array<int32_t, N> flag = a > 0.5f;
+	array<float, N> x2 = where( flag, 0.5f * (1.0f - a), a * a );
+	array<float, N> x1 = where( flag, sqrt( x2 ), a );
+
+	array<float, N> z = asin_core( x1, x2 );
+
+	z = where( flag, float( M_PI / 2.0 ) - (z + z), z );
+	z = copysign( z, x );
+	return z;
+}
 
 template<int N>
 inline ssp::array<float, N> acos( ssp::array<float, N> const& x ) {
 	using namespace ssp;
 
-	array<int32_t, N> flag0 = -1.0f <= x & x <  -0.5f;
-	array<int32_t, N> flag1 = +0.5f <  x & x <= +1.0f;
-	array<int32_t, N> flag2 = -0.5f <= x & x <  +0.5f;
-	// array<int32_t, N> flag3 = x < -1.0f | +1.0f < x;
+	array<float, N> a = abs( x );
+	array<int32_t, N> flag = a > 0.5f;
+	array<float, N> x2 = where( flag, 0.5f * (1.0f - a), a * a );
+	array<float, N> x1 = where( flag, sqrt( x2 ), x );
 
-	array<float, N> z = sqrt( 0.5f * (1.0f - abs( x )) );
-	array<float, N> u = where( flag0 | flag1, z, x );
+	array<float, N> z = asin_core( x1, x2 );
 
-	array<float, N> v = asin( u );
-
-	array<float, N> w = where(
-		flag0, float( M_PI ) - 2.0f * v,
-		flag1,                 2.0f * v,
-		flag2, float( M_PI / 2.0 ) - v,
-		std::numeric_limits<float>::quiet_NaN()
+	return where(
+		x < -0.5f, float( M_PI ) - (z + z),
+		x > +0.5f,                 (z + z),
+		           float( M_PI / 2.0 ) - z // include NaN
 	);
-	return w;
 }
 
 /*
@@ -119,11 +114,11 @@ float atan2( float y, float x ) {
 			where( x < 0.0f, +M_PI + z, z )
 		);
 
-	z.assign_if( x == 0.0f,
-		where( y <  0.0f, -M_PI / 2.0,
-		where( y == 0.0f, 0.0f,
-		where( y >  0.0f, +M_PI / 2.0
-	))));
+	z.assign_if( x == 0.0f, where(
+		y <  0.0f, -M_PI / 2.0,
+		y == 0.0f, 0.0f,
+		y >  0.0f, +M_PI / 2.0
+	) );
 
 	z.assign_if( y == 0.0f,
 		where( x < 0.0f, M_PI, 0.0f )
