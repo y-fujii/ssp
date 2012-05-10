@@ -482,6 +482,15 @@ inline array<int32_t, 4> max( array<int32_t, 4> const& x, array<int32_t, 4> cons
 #endif
 }
 
+inline array<int32_t, 4> abs( array<int32_t, 4> const& x ) {
+#if defined( __SSSE3__ )
+	__m128i z = _mm_abs_epi32( x._packed );
+	return array<int32_t, 4>( z );
+#else
+	return where( x < O, -x, +x );
+#endif
+}
+
 inline bool any_of( array<int32_t, 4> const& x ) {
 	/*
 	union {
