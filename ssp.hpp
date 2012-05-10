@@ -11,6 +11,10 @@
 
 namespace ssp {
 
+struct one  {};
+struct zero {};
+static one  const I;
+static zero const O;
 
 template<class, int> struct reference;
 template<> struct reference<int32_t, 4>;
@@ -110,6 +114,14 @@ struct array<int32_t, 4> {
 		_packed = _mm_set1_epi32( x );
 	}
 
+	array( one ) {
+		_packed = _mm_set1_epi32( 1 );
+	}
+
+	array( zero ) {
+		_packed = _mm_setzero_si128();
+	}
+
 	explicit array( __m128i xs ):
 		_packed( xs ) {}
 
@@ -132,6 +144,14 @@ struct array<float, 4> {
 
 	array( float x ) {
 		_packed = _mm_set1_ps( x );
+	}
+
+	array( one ) {
+		_packed = _mm_set1_ps( 1.0f );
+	}
+
+	array( zero ) {
+		_packed = _mm_setzero_ps();
 	}
 
 	explicit array( __m128 xs ):
@@ -223,54 +243,6 @@ struct reference<int32_t, 4> {
 		int32_t* _data[4];
 };
 
-template<class T> struct traits;
-
-template<>
-struct traits< array<float, 4> > {
-	struct one_t {
-		operator array<float, 4>() const {
-			return array<float, 4>( 1.0f );
-		}
-	};
-
-	static one_t one() {
-		return one_t();
-	}
-
-	struct zero_t {
-		operator array<float, 4>() const {
-			return array<float, 4>( _mm_setzero_ps() );
-		}
-	};
-
-	static zero_t zero() {
-		return zero_t();
-	}
-};
-
-template<>
-struct traits< array<int32_t, 4> > {
-	struct one_t {
-		operator array<int32_t, 4>() const {
-			return array<int32_t, 4>( 1 );
-		}
-	};
-
-	static one_t one() {
-		return one_t();
-	}
-
-	struct zero_t {
-		operator array<int32_t, 4>() const {
-			return array<int32_t, 4>( _mm_setzero_si128() );
-		}
-	};
-
-	static zero_t zero() {
-		return zero_t();
-	}
-};
-
 template<class T, class U, int N> array<T, N> cast( array<U, N> const& );
 
 template<>
@@ -304,20 +276,28 @@ inline array<T, N> where(
 }
 
 inline array<int32_t, 4> where( array<int32_t, 4> const& c, array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
+#if defined( __SSE4_1__ )
+	__m128i z = _mm_blendv_epi8( y._packed, x._packed, c._packed );
+#else
 	// return (c & x) | (~c & y);
-	__m128i z2 = _mm_or_si128(
+	__m128i z = _mm_or_si128(
 		_mm_and_si128   ( c._packed, x._packed ),
 		_mm_andnot_si128( c._packed, y._packed )
 	);
-	return array<int32_t, 4>( z2 );
+#endif
+	return array<int32_t, 4>( z );
 }
 
 inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const& x, array<float, 4> const& y ) {
-	__m128 z2 = _mm_castsi128_ps( _mm_or_si128(
+#if defined( __SSE4_1__ )
+	__m128 z = _mm_blendv_ps( y._packed, x._packed, _mm_castsi128_ps( c._packed ) );
+#else
+	__m128 z = _mm_castsi128_ps( _mm_or_si128(
 		_mm_and_si128   ( c._packed, _mm_castps_si128( x._packed ) ),
 		_mm_andnot_si128( c._packed, _mm_castps_si128( y._packed ) )
 	) );
-	return array<float, 4>( z2 );
+#endif
+	return array<float, 4>( z );
 }
 
 inline array<int32_t, 4> operator+( array<int32_t, 4> const& x, array<int32_t, 4> const& y ) {
@@ -559,12 +539,12 @@ inline array<float, 4> operator/( array<float, 4> const& x, array<float, 4> cons
 	return array<float, 4>( z );
 }
 
-inline array<float, 4> operator/( traits< array<float, 4> >::one_t const& x, array<float, 4> const& y ) {
+inline array<float, 4> operator/( one, array<float, 4> const& y ) {
 #if defined( __FAST_MATH__ )
 	array<float, 4> r = _mm_rcp_ps( y._packed );
 	return (r + r) - y * (r * r);
 #else
-	return array<float, 4>( x ) / y;
+	return array<float, 4>( I ) / y;
 #endif
 }
 
@@ -606,7 +586,7 @@ inline array<float, 4> sqrt( array<float, 4> const& x ) {
 inline array<float, 4> abs( array<float, 4> const& x ) {
 	return where(
 		x <  0.0f, -x,
-		x == 0.0f, +0.0f, // -0, +0
+		x == 0.0f, array<float, 4>( O ), // -0, +0
 		           +x     // >0, NaN
 	);
 }
