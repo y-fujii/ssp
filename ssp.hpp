@@ -612,16 +612,13 @@ inline array<float, 4> floor( array<float, 4> const& x ) {
 	__m128 z = _mm_floor_ps( x._packed );
 	return array<float, 4>( z );
 #else
-	// XXX: BUG
-	array<int32_t, 4> ff = (ff == ff);
-	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (1 << 31) | (126 << 23) | 0x7ffffb ) );
-	array<float, 4> z = where( x < 0.0f, x + o9, x );
-	array<int32_t, 4> e = exponent( z );
-	return where(
-		e <  0, 0.0f * x,
-		e < 24, cast<float>( cast<int32_t>( z ) & (ff << (23 - e)) ),
+	array<int32_t, 4> e = exponent( x );
+	array<float, 4> z = where(
+		e <  0, array<float, 4>( O ),
+		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
 		        x // include NaN
 	);
+	return where( x < O & x < z, z - I, z );
 #endif
 }
 
@@ -630,16 +627,13 @@ inline array<float, 4> ceil( array<float, 4> const& x ) {
 	__m128 z = _mm_ceil_ps( x._packed );
 	return array<float, 4>( z );
 #else
-	// XXX: BUG
-	array<int32_t, 4> ff = (ff == ff);
-	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (0 << 31) | (126 << 23) | 0x7ffffb ) );
-	array<float, 4> z = where( x > 0.0f, x + o9, x );
-	array<int32_t, 4> e = exponent( z );
-	return where(
-		e <  0, 0.0f * x,
-		e < 24, cast<float>( cast<int32_t>( z ) & (ff << (23 - e)) ),
+	array<int32_t, 4> e = exponent( x );
+	array<float, 4> z = where(
+		e <  0, array<float, 4>( O ),
+		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
 		        x // include NaN
 	);
+	return where( x > O & x > z, z + I, z );
 #endif
 }
 

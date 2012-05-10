@@ -252,8 +252,8 @@ int main() {
 	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (0 << 31) | (126 << 23) | 0x7fffff ) );
 	std::cout << o9 << std::endl;
 	std::cout << array<int32_t, 4>( -4 ) * array<int32_t, 4>( 3 ) << std::endl;
-	std::cout << floor( array<float, 4>( -4.0 ) ) << std::endl;
-	std::cout << ceil( array<float, 4>( -4.0 ) ) << std::endl;
+	std::cout << floor( array<float, 4>( +4.0 ) ) << std::endl;
+	std::cout << ceil( array<float, 4>( +4.0 ) ) << std::endl;
 	std::cout << acos( array<float, 4>( -0.6 ) ) << std::endl;
 	std::cout << std::acos( -0.6 ) << std::endl;
 	std::cout << acos( array<float, 4>( +0.2 ) ) << std::endl;
