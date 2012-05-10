@@ -30,17 +30,16 @@ std::ostream& operator<<( std::ostream& out, ssp::array<T, N> const& arr ) {
 int const w = 512, h = 512;
 //int const w = 8192, h = 8192;
 
-template<class View>
-void test1_parallel( View const& dst ) {
+template<class R, class View>
+void test1_parallel( R& runner, View const& dst ) {
 	using namespace ssp;
 
-	Runner runner;
-	runner.for_2d( 0, w, 0, h, [&]( index const& ix, index const& iy ) {
-		array<float, 4> x = array<float, 4>( ix ) * (2.0f / w) - I;
-		array<float, 4> y = array<float, 4>( iy ) * (2.0f / h) - I;
-		array<float, 4> re = O;
-		array<float, 4> im = O;
-		array<float, 4> re2, im2;
+	runner.for_2d( 0, w, 0, h, [&]( typename R::a_int32 const& ix, typename R::a_int32 const& iy ) {
+		typename R::a_float x = typename R::a_float( ix ) * (2.0f / w) - I;
+		typename R::a_float y = typename R::a_float( iy ) * (2.0f / h) - I;
+		typename R::a_float re = O;
+		typename R::a_float im = O;
+		typename R::a_float re2, im2;
 		for( int i = 0; i < 1; ++i ) {
 			re2 = re * re;
 			im2 = im * im;
@@ -51,7 +50,7 @@ void test1_parallel( View const& dst ) {
 			re = re2 - im2 + x;
 		}
 		// we must treat NaN carefully, which comes from (inf - inf).
-		dst[ix + iy * w] = where( re2 + im2 <= 4.0f, array<int32_t, 4>( 0 ), 1 );
+		dst[ix + iy * w] = where( re2 + im2 <= 4.0f, typename R::a_int32( 0 ), 1 );
 	} );
 }
 
@@ -126,11 +125,12 @@ void test0_parallel( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
 	auto srcs = ssp::const_view( srcv );
 	auto dsts = ssp::view( dstv );
 
-	ssp::Runner runner;
+	typedef ssp::Runner<4, 0> R;
+	R runner;
 	
-	runner.for_1d( 0, srcv.size(), [&]( ssp::index const& i ) {
-		ssp::array<float, 4> x = srcs[i].member( &Vec2::x );
-		ssp::array<float, 4> y = srcs[i].member( &Vec2::y );
+	runner.for_1d( 0, srcv.size(), [&]( R::a_int32 const& i ) {
+		R::a_float x = srcs[i].member( &Vec2::x );
+		R::a_float y = srcs[i].member( &Vec2::y );
 		/*
 		ssp::array<float, 4> y = srcs[i].memfun( &Vec2::getPos )();
 		ssp::array<float, 4> y = call( bind( &Vec2::getPos ), srcs[i] );
@@ -141,9 +141,9 @@ void test0_parallel( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
 }
 
 void test0_parallel_opt( std::vector<Vec2>& srcv, std::vector<Vec2>& dstv ) {
-	ssp::Runner runner;
+	ssp::Runner<4, 0> runner;
 	
-	runner.for_1d( 0, srcv.size(), [&]( ssp::index const& i ) {
+	runner.for_1d( 0, srcv.size(), [&]( ssp::Runner<4, 0>::a_int32 const& i ) {
 		ssp::array<float, 4> x(
 			srcv[i._data[0]].x,
 			srcv[i._data[1]].x,
@@ -273,9 +273,10 @@ int main() {
 	auto sTickEnd = std::chrono::high_resolution_clock::now();
 	printf( "  serial: %lu\n", (sTickEnd - sTickBgn).count() );
 
+	Runner<4, 0> runner;
 	auto pTickBgn = std::chrono::high_resolution_clock::now();
 	for( int i = 0; i < 1024; ++i ) {
-		test1_parallel( view( dst_p ) );
+		test1_parallel( runner, view( dst_p ) );
 	}
 	auto pTickEnd = std::chrono::high_resolution_clock::now();
 	printf( "parallel: %lu\n", (pTickEnd - pTickBgn).count() );

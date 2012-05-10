@@ -616,6 +616,14 @@ inline array<int32_t, 4> fraction( array<float, 4> const& x ) {
 	return (cast<int32_t>( x ) & 0x7fffff) | 0x800000;
 }
 
+inline array<float, 4> copysign( array<float, 4> const& x, array<float, 4> const& y ) {
+	int32_t mask_y = 1 << 31;
+	int32_t mask_x = ~mask_y;
+	return cast<float>(
+		(cast<int32_t>( x ) & mask_x) | (cast<int32_t>( y ) & mask_y)
+	);
+}
+
 inline array<float, 4> floor( array<float, 4> const& x ) {
 #if defined( __SSE4_1__ )
 	__m128 z = _mm_floor_ps( x._packed );
@@ -705,12 +713,24 @@ container_view<T const, typename T::value_type const> const_view( T const& c ) {
 	return container_view<T const, typename T::value_type const>( &c );
 }
 
-typedef array<int32_t, 4> index;
 
-struct Runner {
+template<int simd_size, int parallel_type> struct Runner;
+
+template<>
+struct Runner<4, 0> {
+	enum schedule_method {
+		schedule_static,
+		schedule_dynamic,
+		schedule_guided,
+	};
+
+	static int const vector_size = 4;
+	typedef array<int32_t, 4> a_int32;
+	typedef array<float,   4> a_float;
+
 	template<class Func>
 	void for_1d( int32_t x0, int32_t x1, Func const& f ) {
-		index xs( 0, 1, 2, 3 );
+		a_int32 xs( 0, 1, 2, 3 );
 
 		#pragma omp parallel for schedule(guided, 1)
 		for( int32_t x = x0; x < x1; x += 4 ) {
@@ -720,11 +740,11 @@ struct Runner {
 
 	template<class Func>
 	void for_2d( int32_t x0, int32_t x1, int32_t y0, int32_t y1, Func const& f ) {
-		index ys( 0, 0, 1, 1 );
-		index xs( 0, 1, 0, 1 );
+		a_int32 ys( 0, 0, 1, 1 );
+		a_int32 xs( 0, 1, 0, 1 );
 		#pragma omp parallel for schedule(guided, 1)
 		for( int32_t y = y0; y < y1; y += 2 ) {
-			index yi = ys + y;
+			a_int32 yi = ys + y;
 			for( int32_t x = x0; x < x1; x += 2 ) {
 				f( xs + x, yi );
 			}
