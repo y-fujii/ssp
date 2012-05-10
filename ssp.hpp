@@ -618,7 +618,7 @@ inline array<float, 4> floor( array<float, 4> const& x ) {
 		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
 		        x // include NaN
 	);
-	return where( x < O & x < z, z - I, z );
+	return where( z > x, z - I, z );
 #endif
 }
 
@@ -633,7 +633,7 @@ inline array<float, 4> ceil( array<float, 4> const& x ) {
 		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
 		        x // include NaN
 	);
-	return where( x > O & x > z, z + I, z );
+	return where( z < x, z + I, z );
 #endif
 }
 
