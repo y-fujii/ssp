@@ -36,10 +36,10 @@ void test1_parallel( View const& dst ) {
 
 	Runner runner;
 	runner.for_2d( 0, w, 0, h, [&]( index const& ix, index const& iy ) {
-		array<float, 4> x = array<float, 4>( ix ) * (2.0f / w) - 1.0f;
-		array<float, 4> y = array<float, 4>( iy ) * (2.0f / h) - 1.0f;
-		array<float, 4> re = 0.0f;
-		array<float, 4> im = 0.0f;
+		array<float, 4> x = array<float, 4>( ix ) * (2.0f / w) - I;
+		array<float, 4> y = array<float, 4>( iy ) * (2.0f / h) - I;
+		array<float, 4> re = O;
+		array<float, 4> im = O;
 		array<float, 4> re2, im2;
 		for( int i = 0; i < 1; ++i ) {
 			re2 = re * re;
@@ -249,6 +249,7 @@ int32_t test( int32_t x ) {
 int main() {
 	using namespace ssp;
 
+	/*
 	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (1 << 31) | (126 << 23) | 0x7fffff ) );
 	std::cout << o9 << std::endl;
 	std::cout << array<int32_t, 4>( -4 ) * array<int32_t, 4>( 3 ) << std::endl;
@@ -258,6 +259,7 @@ int main() {
 	std::cout << acos( array<float, 4>( +0.2 ) ) << std::endl;
 	std::cout << std::acos( +0.2 ) << std::endl;
 	std::cout << call<int32_t>( test, array<int32_t, 4>( -4 ) ) << std::endl;
+	*/
 
 
 	std::vector<int32_t> dst_s( w * h );

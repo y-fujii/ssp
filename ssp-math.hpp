@@ -31,7 +31,10 @@ inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
 	using namespace ssp;
 
 	array<float, N> a = abs( x );
-	array<float, N> s = where( x > 0.0f, array<float, N>( +1.0f ), -1.0f );
+	array<float, N> s = where( x > 0.0f,
+		array<float, N>( +1.0f ),
+		array<float, N>( -1.0f )
+	);
 
 	array<int32_t, N> flag = a > 0.5f;
 
@@ -49,7 +52,10 @@ inline ssp::array<float, N> asin( ssp::array<float, N> const& x ) {
 	z = where( flag, float(M_PI / 2.0) - (z + z), z );
 	z = where( a < 1e-4f, a, z );
 	z = s * z;
-	z = where( a > 1.0f, std::numeric_limits<float>::quiet_NaN(), z );
+	z = where( a > 1.0f,
+		array<float, 4>( std::numeric_limits<float>::quiet_NaN() ),
+		z
+	);
 	return z;
 }
 
