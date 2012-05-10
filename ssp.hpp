@@ -614,7 +614,7 @@ inline array<float, 4> floor( array<float, 4> const& x ) {
 #else
 	array<int32_t, 4> e = exponent( x );
 	array<float, 4> z = where(
-		e <  0, array<float, 4>( O ),
+		e <  0, array<float, 4>( +0.0f ),
 		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
 		        x // include NaN
 	);
@@ -629,7 +629,7 @@ inline array<float, 4> ceil( array<float, 4> const& x ) {
 #else
 	array<int32_t, 4> e = exponent( x );
 	array<float, 4> z = where(
-		e <  0, array<float, 4>( O ),
+		e <  0, array<float, 4>( -0.0f ),
 		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
 		        x // include NaN
 	);
