@@ -246,16 +246,75 @@ int32_t test( int32_t x ) {
 
 template<class F0, class F1>
 int compare_mathfunc( float x0, float x1, int N, F0 f0, F1 f1 ) {
+	using namespace std;
 	int nerr = 0;
 	for( int i = 0; i < N; ++i ) {
 		float x = ((x1 - x0) / N) * i + x0;
 		float r0 = f0( ssp::array<float, 4>( x ) )._data[0];
 		float r1 = f1( x );
-		if( abs( (r0 - r1) / r1 ) > 1e-7 ) {
+		if( fabs( (r0 - r1) / r1 ) > 1e-6 ) {
+			if( nerr < 16 ) {
+				cout << r0 << ", " << r1 << endl;
+			}
 			++nerr;
 		}
 	}
 	return nerr;
+}
+
+float cephes_atanf( float xx ) {
+	float const PIO2F = M_PI / 2.0;
+	float const PIO4F = M_PI / 4.0;
+	float x, y, z;
+	int sign;
+
+	x = xx;
+
+	/* make argument positive and save the sign */
+	if( xx < 0.0 ) {
+		sign = -1;
+		x = -xx;
+	}
+	else {
+		sign = 1;
+		x = xx;
+	}
+	/* range reduction */
+	if( x > 2.414213562373095 )  /* tan 3pi/8 */
+	{
+		y = PIO2F;
+		x = -( 1.0/x );
+	}
+
+	else if( x > 0.4142135623730950 ) /* tan pi/8 */
+	{
+		y = PIO4F;
+		x = (x-1.0)/(x+1.0);
+	}
+	else
+		y = 0.0;
+
+	z = x * x;
+	y +=
+		((( 8.05374449538e-2 * z
+			- 1.38776856032E-1) * z
+		  + 1.99777106478E-1) * z
+		 - 3.33329491539E-1) * z * x
+		+ x;
+
+	if( sign < 0 )
+		y = -y;
+
+	return( y );
+}
+
+
+template<class Func>
+int64_t benchmark( Func const& f ) {
+	auto tickBgn = std::chrono::high_resolution_clock::now();
+	f();
+	auto tickEnd = std::chrono::high_resolution_clock::now();
+	return (tickEnd - tickBgn).count();
 }
 
 #include <unistd.h>
@@ -263,15 +322,45 @@ int compare_mathfunc( float x0, float x1, int N, F0 f0, F1 f1 ) {
 int main() {
 	using namespace ssp;
 
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::asin<4>, asinf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::acos<4>, acosf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::floor, floorf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::ceil, ceilf ) << std::endl;
-	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::atan<4>, atanf ) << std::endl;
-	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::sinh<4>, sinhf ) << std::endl;
-	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::cosh<4>, coshf ) << std::endl;
-	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::tanh<4>, tanhf ) << std::endl;
+	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::asin<4>, asinf ) << std::endl;
+	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::acos<4>, acosf ) << std::endl;
+	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::floor, floorf ) << std::endl;
+	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::ceil, ceilf ) << std::endl;
+	std::cout << compare_mathfunc( -1e3f, 1e3f, 10000000, &ssp::atan<4>, atanf ) << std::endl;
+	std::cout << compare_mathfunc( -1e1f, 1e1f, 10000000, &ssp::sinh<4>, sinhf ) << std::endl;
+	std::cout << compare_mathfunc( -0.5e2f, 0.5e2f, 10000000, &ssp::cosh<4>, coshf ) << std::endl;
+	std::cout << compare_mathfunc( -1e-1f, 1e-1f, 10000000, &ssp::cosh<4>, coshf ) << std::endl;
+	std::cout << compare_mathfunc( -1e3f, 1e3f, 10000000, &ssp::tanh<4>, tanhf ) << std::endl;
 
+	array<float, 4> u;
+	int64_t t = benchmark( [&]() {
+		float x0 = -1.0f;
+		float x1 = +1.0f;
+		size_t const N = 10000000;
+		//array<float, 4> x = 0.0f;
+		float r = 0.0f;
+		for( size_t i = 0; i < N; ++i ) {
+			float x = ((x1 - x0) / N) * i + x0;
+			r += sinh( x );
+		}
+		u = r;
+	} );
+	std::cout << u << std::endl;
+	printf( "  tanh: %lu\n", t );
+
+	t = benchmark( [&]() {
+		array<float, 4> x0 = -1.0f;
+		array<float, 4> x1 = +1.0f;
+		size_t const N = 10000000;
+		array<float, 4> r = 0.0f;
+		for( size_t i = 0; i < N; ++i ) {
+			array<float, 4> x = ((x1 - x0) / N) * i + x0;
+			r = r + ssp::sinh( x );
+		}
+		u = r;
+	} );
+	std::cout << u << std::endl;
+	printf( "  tanh: %lu\n", t );
 
 	std::vector<int32_t> dst_s( w * h );
 	std::vector<int32_t> dst_p( w * h );
