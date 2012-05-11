@@ -109,5 +109,46 @@ array<float, N> atan2( array<float, N> const& y, array<float, N> const& x ) {
 	return where( x > 0.0f, copysign( M_PI, y ) + z, z );
 }
 
+template<int N>
+array<float, N> sinh( array<float, N> const& x ) {
+	array<float, N> x2 = x * x;
+	array<float, N> z0 =
+		((2.03721912945e-4  * x2
+		+ 8.33028376239e-3) * x2
+		+ 1.66667160211e-1) * x2 * x
+		+ x;
+
+	array<float, N> a = abs( x );
+	array<float, N> z1 = exp( a );
+	z1 = 0.5f * z1 - 0.5f / z1;
+	z1 = copysign( z1, x );
+
+	return where( a <= 1.0f, z0, z1 );
+}
+
+template<int N>
+array<float, N> cosh( array<float, N> const& x ) {
+	array<float, N> z = exp( abs( x ) );
+	return 0.5f * z + 0.5f / z;
+}
+
+template<int N>
+array<float, N> tanh( array<float, N> const& x ) {
+	array<float, N> x2 = x * x;
+	array<float, N> z0 =
+		((((- 5.70498872745e-3  * x2
+			+ 2.06390887954e-2) * x2
+			- 5.37397155531e-2) * x2
+			+ 1.33314422036e-1) * x2
+			- 3.33332819422e-1) * x2 * x
+			+ x;
+
+	array<float, N> a = abs( x );
+	array<float, N> z1 = 1.0f - 2.0f / (exp( a + a ) + 1.0f);
+	z1 = copysign( z1, x );
+
+	return where( a < 0.625f, z0, z1 );
+}
+
 
 }
