@@ -268,6 +268,9 @@ int main() {
 	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::floor, floorf ) << std::endl;
 	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::ceil, ceilf ) << std::endl;
 	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::atan<4>, atanf ) << std::endl;
+	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::sinh<4>, sinhf ) << std::endl;
+	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::cosh<4>, coshf ) << std::endl;
+	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::tanh<4>, tanhf ) << std::endl;
 
 
 	std::vector<int32_t> dst_s( w * h );
