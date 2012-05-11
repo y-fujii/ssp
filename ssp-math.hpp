@@ -74,9 +74,12 @@ inline array<float, N> acos( array<float, N> const& x ) {
 
 template<int N>
 inline array<float, N> atan( array<float, N> const& x ) {
+	static float const tan_3pi_8 = tan( 3.0 * M_PI / 8.0 );
+	static float const tan_1pi_8 = tan( 1.0 * M_PI / 8.0 );
+
 	array<float, N> a = abs( x );
-	array<int32_t, N> flag0 = a > float( 3.0 * M_PI / 8.0 );
-	array<int32_t, N> flag1 = a > float( 1.0 * M_PI / 8.0 );
+	array<int32_t, N> flag0 = a > tan_3pi_8;
+	array<int32_t, N> flag1 = a > tan_1pi_8;
 
 	a = where(
 		flag0, -1.0f / a,
@@ -137,11 +140,11 @@ array<float, N> tanh( array<float, N> const& x ) {
 	array<float, N> x2 = x * x;
 	array<float, N> z0 =
 		((((- 5.70498872745e-3  * x2
-			+ 2.06390887954e-2) * x2
-			- 5.37397155531e-2) * x2
-			+ 1.33314422036e-1) * x2
-			- 3.33332819422e-1) * x2 * x
-			+ x;
+		    + 2.06390887954e-2) * x2
+		    - 5.37397155531e-2) * x2
+		    + 1.33314422036e-1) * x2
+		    - 3.33332819422e-1) * x2 * x
+		    + x;
 
 	array<float, N> a = abs( x );
 	array<float, N> z1 = 1.0f - 2.0f / (exp( a + a ) + 1.0f);
@@ -149,6 +152,52 @@ array<float, N> tanh( array<float, N> const& x ) {
 
 	return where( a < 0.625f, z0, z1 );
 }
+
+/*
+template<int N>
+array<float, N> tan( array<float, N> const& x ) {
+	array<float, N> a = abs( x );
+
+	if( x > 8192.0f ) {
+		return 0.0f;
+	}
+
+	long j = float( 4.0 / M_PI ) * x;
+	float y = j;
+
+	if( j & 1 ) {
+		j += 1;
+		y += 1.0;
+	}
+
+	array<float, N> z =
+		x - y * 0.78515625
+		  - y * 2.4187564849853515625e-4
+		  - y * 3.77489497744594108e-8;
+
+	if( x > 1.0e-4 ) {
+		zz = z * z;
+		y =
+			(((((9.38540185543e-3  * zz
+			   + 3.11992232697e-3) * zz
+			   + 2.44301354525e-2) * zz
+			   + 5.34112807005e-2) * zz
+			   + 1.33387994085e-1) * zz
+			   + 3.33331568548e-1) * zz * z
+			   + z;
+	}
+	else {
+		y = z;
+	}
+
+	if( j & 2 ) {
+			y = -1.0f / y;
+	}
+
+	copysign( y, x );
+	return  y;
+}
+*/
 
 
 }

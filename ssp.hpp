@@ -672,14 +672,14 @@ array<Result, N> call( Func const& f, array<Ts, N> const&... args ) {
 
 template<class Container, class Elem>
 struct container_view {
-	container_view( Container* c ):
+	container_view( Container& c ):
 		_container( c ) {}
 
 	template<class T, int N>
 	reference<Elem, N> operator[]( array<T, N> const& idx ) const {
 		reference<Elem, N> ref;
 		for( int i = 0; i < N; ++i ) {
-			ref._data[i] = &(*_container)[idx._data[i]];
+			ref._data[i] = &_container[idx._data[i]];
 		}
 		return ref;
 	}
@@ -697,17 +697,17 @@ struct container_view {
 	*/
 
 	private:
-		Container* _container;
+		Container& _container;
 };
 
 template<class T>
 container_view<T, typename T::value_type> view( T& c ) {
-	return container_view<T, typename T::value_type>( &c );
+	return container_view<T, typename T::value_type>( c );
 }
 
 template<class T>
 container_view<T const, typename T::value_type const> const_view( T const& c ) {
-	return container_view<T const, typename T::value_type const>( &c );
+	return container_view<T const, typename T::value_type const>( c );
 }
 
 
