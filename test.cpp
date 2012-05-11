@@ -244,21 +244,30 @@ int32_t test( int32_t x ) {
 	return x;
 }
 
+template<class F0, class F1>
+int compare_mathfunc( float x0, float x1, int N, F0 f0, F1 f1 ) {
+	int nerr = 0;
+	for( int i = 0; i < N; ++i ) {
+		float x = ((x1 - x0) / N) * i + x0;
+		float r0 = f0( ssp::array<float, 4>( x ) )._data[0];
+		float r1 = f1( x );
+		if( abs( (r0 - r1) / r1 ) > 1e-7 ) {
+			++nerr;
+		}
+	}
+	return nerr;
+}
+
 #include <unistd.h>
 
 int main() {
 	using namespace ssp;
 
-	array<float, 4> o9 = cast<float>( array<int32_t, 4>( (0 << 31) | (126 << 23) | 0x7fffff ) );
-	std::cout << o9 << std::endl;
-	std::cout << array<int32_t, 4>( -4 ) * array<int32_t, 4>( 3 ) << std::endl;
-	std::cout << floor( array<float, 4>( +4.0 ) ) << std::endl;
-	std::cout << ceil( array<float, 4>( +4.0 ) ) << std::endl;
-	std::cout << acos( array<float, 4>( -0.6 ) ) << std::endl;
-	std::cout << std::acos( -0.6 ) << std::endl;
-	std::cout << acos( array<float, 4>( +0.2 ) ) << std::endl;
-	std::cout << std::acos( +0.2 ) << std::endl;
-	std::cout << call<int32_t>( test, array<int32_t, 4>( -4 ) ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::asin<4>, asinf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::acos<4>, acosf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::floor, floorf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 100000000, &ssp::ceil, ceilf ) << std::endl;
+	std::cout << compare_mathfunc( -1e4f, 1e4f, 100000000, &ssp::atan<4>, atanf ) << std::endl;
 
 
 	std::vector<int32_t> dst_s( w * h );
