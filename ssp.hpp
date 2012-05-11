@@ -597,11 +597,8 @@ inline array<float, 4> sqrt( array<float, 4> const& x ) {
 }
 
 inline array<float, 4> abs( array<float, 4> const& x ) {
-	return where(
-		x <  0.0f, -x,
-		x == 0.0f, array<float, 4>( O ), // -0, +0
-		           +x     // >0, NaN
-	);
+	int32_t mask = ~(1 << 31);
+	return cast<float>( cast<int32_t>( x ) & mask );
 }
 
 inline array<int32_t, 4> sign( array<float, 4> const& x ) {
