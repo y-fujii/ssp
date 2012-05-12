@@ -13,18 +13,27 @@ namespace detail {
 	#undef USE_SSE2
 }
 
+template<int N> array<float, N> sin( array<float, N> const& );
+template<int N> array<float, N> cos( array<float, N> const& );
+template<int N> array<float, N> exp( array<float, N> const& );
+template<int N> array<float, N> log( array<float, N> const& );
+
+template<>
 inline array<float, 4> sin( array<float, 4> const& x ) {
 	return array<float, 4>( detail::sin_ps( x._packed ) );
 }
 
+template<>
 inline array<float, 4> cos( array<float, 4> const& x ) {
 	return array<float, 4>( detail::cos_ps( x._packed ) );
 }
 
+template<>
 inline array<float, 4> exp( array<float, 4> const& x ) {
 	return array<float, 4>( detail::exp_ps( x._packed ) );
 }
 
+template<>
 inline array<float, 4> log( array<float, 4> const& x ) {
 	return array<float, 4>( detail::log_ps( x._packed ) );
 }
@@ -153,51 +162,33 @@ array<float, N> tanh( array<float, N> const& x ) {
 	return where( a < 0.625f, z0, z1 );
 }
 
-/*
 template<int N>
 array<float, N> tan( array<float, N> const& x ) {
-	array<float, N> a = abs( x );
+	array<int32_t, N> ni = floori( float( 4.0 / M_PI ) * x );
+	ni = ni + (ni & 1);
 
-	if( x > 8192.0f ) {
-		return 0.0f;
-	}
+	array<float, N> nf( ni );
+	array<float, N> r =
+		x - nf * 0.7853851318359375
+		  - nf * 1.30315311253070831298828125e-5
+		  - nf * 3.03855025325309630e-11;
 
-	long j = float( 4.0 / M_PI ) * x;
-	float y = j;
-
-	if( j & 1 ) {
-		j += 1;
-		y += 1.0;
-	}
-
+	array<float, N> r2 = r * r;
 	array<float, N> z =
-		x - y * 0.78515625
-		  - y * 2.4187564849853515625e-4
-		  - y * 3.77489497744594108e-8;
+		(((((9.38540185543e-3  * r2
+		   + 3.11992232697e-3) * r2
+		   + 2.44301354525e-2) * r2
+		   + 5.34112807005e-2) * r2
+		   + 1.33387994085e-1) * r2
+		   + 3.33331568548e-1) * r2 * r
+		   + r;
 
-	if( x > 1.0e-4 ) {
-		zz = z * z;
-		y =
-			(((((9.38540185543e-3  * zz
-			   + 3.11992232697e-3) * zz
-			   + 2.44301354525e-2) * zz
-			   + 5.34112807005e-2) * zz
-			   + 1.33387994085e-1) * zz
-			   + 3.33331568548e-1) * zz * z
-			   + z;
-	}
-	else {
-		y = z;
-	}
+	z = where( abs( z ) <= 1.0e-4f, r, z );
+	z = where( (ni & 2) != 0, -1.0f / z, z );
+	z = where( abs( x ) <= 65536.0f, z, 0.0f );
 
-	if( j & 2 ) {
-			y = -1.0f / y;
-	}
-
-	copysign( y, x );
-	return  y;
+	return z;
 }
-*/
 
 
 }

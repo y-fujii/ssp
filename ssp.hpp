@@ -621,19 +621,32 @@ inline array<float, 4> copysign( array<float, 4> const& x, array<float, 4> const
 	);
 }
 
+inline array<float, 4> truncate( array<float, 4> const& x ) {
+	array<int32_t, 4> e = exponent( x );
+	return where(
+		e <  0, array<float, 4>( +0.0f ),
+		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
+		        x // include NaN
+	);
+}
+
+inline array<int32_t, 4> truncatei( array<float, 4> const& x ) {
+	return array<int32_t, 4>( _mm_cvttps_epi32( x._packed ) );
+}
+
 inline array<float, 4> floor( array<float, 4> const& x ) {
 #if defined( __SSE4_1__ )
 	__m128 z = _mm_floor_ps( x._packed );
 	return array<float, 4>( z );
 #else
-	array<int32_t, 4> e = exponent( x );
-	array<float, 4> z = where(
-		e <  0, array<float, 4>( +0.0f ),
-		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
-		        x // include NaN
-	);
+	array<float, 4> z = truncate( x );
 	return where( z > x, z - I, z );
 #endif
+}
+
+inline array<int32_t, 4> floori( array<float, 4> const& x ) {
+	array<int32_t, 4> z = truncatei( x );
+	return where( array<float, 4>( z ) > x, z - I, z );
 }
 
 inline array<float, 4> ceil( array<float, 4> const& x ) {
@@ -641,14 +654,14 @@ inline array<float, 4> ceil( array<float, 4> const& x ) {
 	__m128 z = _mm_ceil_ps( x._packed );
 	return array<float, 4>( z );
 #else
-	array<int32_t, 4> e = exponent( x );
-	array<float, 4> z = where(
-		e <  0, array<float, 4>( -0.0f ),
-		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
-		        x // include NaN
-	);
+	array<float, 4> z = truncate( x );
 	return where( z < x, z + I, z );
 #endif
+}
+
+inline array<int32_t, 4> ceili( array<float, 4> const& x ) {
+	array<int32_t, 4> z = truncatei( x );
+	return where( array<float, 4>( z ) < x, z + I, z );
 }
 
 inline array<float, 4> min( array<float, 4> const& x, array<float, 4> const& y ) {
