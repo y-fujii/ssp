@@ -252,9 +252,9 @@ int compare_mathfunc( float x0, float x1, int N, F0 f0, F1 f1 ) {
 		float x = ((x1 - x0) / N) * i + x0;
 		float r0 = f0( ssp::array<float, 4>( x ) )._data[0];
 		float r1 = f1( x );
-		if( fabs( (r0 - r1) / r1 ) > 1e-6 ) {
+		if( fabs( (r0 - r1) / r1 ) > 3e-7 ) {
 			if( nerr < 16 ) {
-				cout << r0 << ", " << r1 << endl;
+				printf( "f(%f) = %f, %f\n", x, r0, r1 );
 			}
 			++nerr;
 		}
@@ -280,14 +280,11 @@ float cephes_atanf( float xx ) {
 		x = xx;
 	}
 	/* range reduction */
-	if( x > 2.414213562373095 )  /* tan 3pi/8 */
-	{
+	if( x > 2.414213562373095 ) { /* tan 3pi/8 */
 		y = PIO2F;
 		x = -( 1.0/x );
 	}
-
-	else if( x > 0.4142135623730950 ) /* tan pi/8 */
-	{
+	else if( x > 0.4142135623730950 ) { /* tan pi/8 */
 		y = PIO4F;
 		x = (x-1.0)/(x+1.0);
 	}
@@ -297,10 +294,87 @@ float cephes_atanf( float xx ) {
 	z = x * x;
 	y +=
 		((( 8.05374449538e-2 * z
-			- 1.38776856032E-1) * z
+		  - 1.38776856032E-1) * z
 		  + 1.99777106478E-1) * z
-		 - 3.33329491539E-1) * z * x
-		+ x;
+		  - 3.33329491539E-1) * z * x
+		  + x;
+
+	if( sign < 0 )
+		y = -y;
+
+	return( y );
+}
+
+float cephes_tanf( float xx ) {
+	static float const DP1 = 0.78515625;
+	static float const DP2 = 2.4187564849853515625e-4;
+	static float const DP3 = 3.77489497744594108e-8;
+	static float const FOPI = 1.27323954473516;  /* 4/pi */
+	static float const lossth = 8192.;
+	static int const cotflg = 0;
+	float x, y, z, zz;
+	long j;
+	int sign;
+
+	/* make argument positive but save the sign */
+	if( xx < 0.0 ) {
+		x = -xx;
+		sign = -1;
+	}
+	else {
+		x = xx;
+		sign = 1;
+	}
+
+	if( x > lossth ) {
+		/*
+		if( cotflg )
+			mtherr( "cotf", TLOSS );
+		else
+			mtherr( "tanf", TLOSS );
+		*/
+		return(0.0);
+	}
+
+	/* compute x mod PIO4 */
+	j = FOPI * x; /* integer part of x/(PI/4) */
+	y = j;
+
+	/* map zeros and singularities to origin */
+	if( j & 1 ) {
+		j += 1;
+		y += 1.0;
+	}
+
+	z = ((x - y * DP1) - y * DP2) - y * DP3;
+
+	zz = z * z;
+
+	if( x > 1.0e-4 ) {
+		/* 1.7e-8 relative error in [-pi/4, +pi/4] */
+		y =
+			((((( 9.38540185543E-3 * zz
+			    + 3.11992232697E-3) * zz
+			    + 2.44301354525E-2) * zz
+			    + 5.34112807005E-2) * zz
+			    + 1.33387994085E-1) * zz
+			    + 3.33331568548E-1) * zz * z
+			    + z;
+	}
+	else {
+		y = z;
+	}
+
+	if( j & 2 ) {
+		if( cotflg )
+			y = -y;
+		else
+			y = -1.0/y;
+	}
+	else {
+		if( cotflg )
+			y = 1.0/y;
+	}
 
 	if( sign < 0 )
 		y = -y;
@@ -322,10 +396,12 @@ int64_t benchmark( Func const& f ) {
 int main() {
 	using namespace ssp;
 
-	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::asin<4>, asinf ) << std::endl;
-	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::acos<4>, acosf ) << std::endl;
-	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::floor, floorf ) << std::endl;
-	//std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::ceil, ceilf ) << std::endl;
+	std::cout << compare_mathfunc( -100.0 * M_PI, 100.0 * M_PI, 10000000, &ssp::tan<4>, (double (*)(double))(std::tan) ) << std::endl;
+	std::cout << compare_mathfunc( -0.1f, 0.1f, 10000000, &ssp::tan<4>, tanf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::asin<4>, asinf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::acos<4>, acosf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::floor, floorf ) << std::endl;
+	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::ceil, ceilf ) << std::endl;
 	std::cout << compare_mathfunc( -1e3f, 1e3f, 10000000, &ssp::atan<4>, atanf ) << std::endl;
 	std::cout << compare_mathfunc( -1e1f, 1e1f, 10000000, &ssp::sinh<4>, sinhf ) << std::endl;
 	std::cout << compare_mathfunc( -0.5e2f, 0.5e2f, 10000000, &ssp::cosh<4>, coshf ) << std::endl;
@@ -341,7 +417,7 @@ int main() {
 		float r = 0.0f;
 		for( size_t i = 0; i < N; ++i ) {
 			float x = ((x1 - x0) / N) * i + x0;
-			r += sinh( x );
+			r += atanf( x );
 		}
 		u = r;
 	} );
@@ -355,7 +431,7 @@ int main() {
 		array<float, 4> r = 0.0f;
 		for( size_t i = 0; i < N; ++i ) {
 			array<float, 4> x = ((x1 - x0) / N) * i + x0;
-			r = r + ssp::sinh( x );
+			r = r + ssp::atan( x );
 		}
 		u = r;
 	} );
