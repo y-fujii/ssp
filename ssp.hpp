@@ -492,34 +492,22 @@ inline array<int32_t, 4> abs( array<int32_t, 4> const& x ) {
 }
 
 inline bool any_of( array<int32_t, 4> const& x ) {
-	/*
-	union {
-		int64_t array[2];
-		__m128i packed;
-	} y;
-	_mm_store_si128( &y.packed, x._packed );
-	return (y.array[0] | y.array[1]) != 0l;
-	*/
+	// return _mm_movemask_epi8( (x != 0)._packed ) != 0x0000;
 	return _mm_movemask_epi8( x._packed ) != 0x0000;
 }
 
 inline bool all_of( array<int32_t, 4> const& x ) {
-	/*
-	union {
-		int64_t array[2];
-		__m128i packed;
-	} y;
-	_mm_store_si128( &y.packed, x._packed );
-	return ~(y.array[0] & y.array[1]) == 0l;
-	*/
+	// return _mm_movemask_epi8( (x != 0)._packed ) == 0xffff;
 	return _mm_movemask_epi8( x._packed ) == 0xffff;
 }
 
 inline bool none_of( array<int32_t, 4> const& x ) {
+	// return _mm_movemask_epi8( (x != 0)._packed ) == 0x0000;
 	return _mm_movemask_epi8( x._packed ) == 0x0000;
 }
 
 inline bool nall_of( array<int32_t, 4> const& x ) {
+	// return _mm_movemask_epi8( (x != 0)._packed ) != 0xffff;
 	return _mm_movemask_epi8( x._packed ) != 0xffff;
 }
 
