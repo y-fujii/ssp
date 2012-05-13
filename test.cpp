@@ -2,6 +2,7 @@
 #include <vector>
 #include <ostream>
 #include <iostream>
+#include <random>
 #include <stdio.h>
 #include "ssp.hpp"
 #include "ssp-math.hpp"
@@ -244,144 +245,42 @@ int32_t test( int32_t x ) {
 	return x;
 }
 
-template<class F0, class F1>
-int compare_mathfunc( float x0, float x1, int N, F0 f0, F1 f1 ) {
+template<class Rng>
+float hidoi_float( int n, Rng& rng ) {
 	using namespace std;
+
+	static uint32_t const mask = 0xff << 23;
+	uniform_int_distribution<int> fdist( 0, n + 0x7f );
+
+	union {
+		float f;
+		uint32_t b;
+	} v;
+	v.b = (uint32_t( rng() ) & ~mask) | (fdist( rng ) << 23);
+	return v.f;
+}
+
+template<class F0, class F1>
+int test_math_func( double m, int N, F0 f0, F1 f1 ) {
+	using namespace std;
+
+	int n = log( m ) / log( 2 );
+
+	mt19937 rng;
 	int nerr = 0;
 	for( int i = 0; i < N; ++i ) {
-		float x = ((x1 - x0) / N) * i + x0;
-		float r0 = f0( ssp::array<float, 4>( x ) )._data[0];
-		float r1 = f1( x );
-		if( fabs( (r0 - r1) / r1 ) > 3e-7 ) {
+		float x = hidoi_float( n, rng );
+		double r0 = f0( ssp::array<float, 4>( x ) )._data[0];
+		double r1 = f1( x );
+		if( fabs( r0 - r1 ) / max( r0, r1 ) > 3e-7 ) {
 			if( nerr < 16 ) {
-				printf( "f(%f) = %f, %f\n", x, r0, r1 );
+				printf( "f(%e) = %e, %e\n", x, r0, r1 );
 			}
 			++nerr;
 		}
 	}
 	return nerr;
 }
-
-float cephes_atanf( float xx ) {
-	float const PIO2F = M_PI / 2.0;
-	float const PIO4F = M_PI / 4.0;
-	float x, y, z;
-	int sign;
-
-	x = xx;
-
-	/* make argument positive and save the sign */
-	if( xx < 0.0 ) {
-		sign = -1;
-		x = -xx;
-	}
-	else {
-		sign = 1;
-		x = xx;
-	}
-	/* range reduction */
-	if( x > 2.414213562373095 ) { /* tan 3pi/8 */
-		y = PIO2F;
-		x = -( 1.0/x );
-	}
-	else if( x > 0.4142135623730950 ) { /* tan pi/8 */
-		y = PIO4F;
-		x = (x-1.0)/(x+1.0);
-	}
-	else
-		y = 0.0;
-
-	z = x * x;
-	y +=
-		((( 8.05374449538e-2 * z
-		  - 1.38776856032E-1) * z
-		  + 1.99777106478E-1) * z
-		  - 3.33329491539E-1) * z * x
-		  + x;
-
-	if( sign < 0 )
-		y = -y;
-
-	return( y );
-}
-
-float cephes_tanf( float xx ) {
-	static float const DP1 = 0.78515625;
-	static float const DP2 = 2.4187564849853515625e-4;
-	static float const DP3 = 3.77489497744594108e-8;
-	static float const FOPI = 1.27323954473516;  /* 4/pi */
-	static float const lossth = 8192.;
-	static int const cotflg = 0;
-	float x, y, z, zz;
-	long j;
-	int sign;
-
-	/* make argument positive but save the sign */
-	if( xx < 0.0 ) {
-		x = -xx;
-		sign = -1;
-	}
-	else {
-		x = xx;
-		sign = 1;
-	}
-
-	if( x > lossth ) {
-		/*
-		if( cotflg )
-			mtherr( "cotf", TLOSS );
-		else
-			mtherr( "tanf", TLOSS );
-		*/
-		return(0.0);
-	}
-
-	/* compute x mod PIO4 */
-	j = FOPI * x; /* integer part of x/(PI/4) */
-	y = j;
-
-	/* map zeros and singularities to origin */
-	if( j & 1 ) {
-		j += 1;
-		y += 1.0;
-	}
-
-	z = ((x - y * DP1) - y * DP2) - y * DP3;
-
-	zz = z * z;
-
-	if( x > 1.0e-4 ) {
-		/* 1.7e-8 relative error in [-pi/4, +pi/4] */
-		y =
-			((((( 9.38540185543E-3 * zz
-			    + 3.11992232697E-3) * zz
-			    + 2.44301354525E-2) * zz
-			    + 5.34112807005E-2) * zz
-			    + 1.33387994085E-1) * zz
-			    + 3.33331568548E-1) * zz * z
-			    + z;
-	}
-	else {
-		y = z;
-	}
-
-	if( j & 2 ) {
-		if( cotflg )
-			y = -y;
-		else
-			y = -1.0/y;
-	}
-	else {
-		if( cotflg )
-			y = 1.0/y;
-	}
-
-	if( sign < 0 )
-		y = -y;
-
-	return( y );
-}
-
 
 template<class Func>
 int64_t benchmark( Func const& f ) {
@@ -396,17 +295,18 @@ int64_t benchmark( Func const& f ) {
 int main() {
 	using namespace ssp;
 
-	std::cout << compare_mathfunc( -100.0 * M_PI, 100.0 * M_PI, 10000000, &ssp::tan<4>, (double (*)(double))(std::tan) ) << std::endl;
-	std::cout << compare_mathfunc( -0.1f, 0.1f, 10000000, &ssp::tan<4>, tanf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::asin<4>, asinf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::acos<4>, acosf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::floor, floorf ) << std::endl;
-	std::cout << compare_mathfunc( -2.0f, 2.0f, 10000000, &ssp::ceil, ceilf ) << std::endl;
-	std::cout << compare_mathfunc( -1e3f, 1e3f, 10000000, &ssp::atan<4>, atanf ) << std::endl;
-	std::cout << compare_mathfunc( -1e1f, 1e1f, 10000000, &ssp::sinh<4>, sinhf ) << std::endl;
-	std::cout << compare_mathfunc( -0.5e2f, 0.5e2f, 10000000, &ssp::cosh<4>, coshf ) << std::endl;
-	std::cout << compare_mathfunc( -1e-1f, 1e-1f, 10000000, &ssp::cosh<4>, coshf ) << std::endl;
-	std::cout << compare_mathfunc( -1e3f, 1e3f, 10000000, &ssp::tanh<4>, tanhf ) << std::endl;
+	int const N = 10000000;
+	std::cout << test_math_func( 1e9f, N, &ssp::floor, floorf ) << std::endl;
+	std::cout << test_math_func( 1e9f, N, &ssp::ceil, ceilf ) << std::endl;
+	std::cout << test_math_func( 4.0f, N, &ssp::tan<4>, tanf ) << std::endl;
+	std::cout << test_math_func( 2.0f, N, &ssp::asin<4>, asinf ) << std::endl;
+	std::cout << test_math_func( 2.0f, N, &ssp::acos<4>, acosf ) << std::endl;
+	std::cout << test_math_func( 1e3f, N, &ssp::atan<4>, atanf ) << std::endl;
+	std::cout << test_math_func( 2.0f, N, &ssp::sinh<4>, sinhf ) << std::endl;
+	std::cout << test_math_func( 2.0f, N, &ssp::cosh<4>, coshf ) << std::endl;
+	std::cout << test_math_func( 1e3f, N, &ssp::tanh<4>, tanhf ) << std::endl;
+	std::cout << test_math_func( 1e3f, N, &ssp::exp<4>, expf ) << std::endl;
+	std::cout << std::endl;
 
 	array<float, 4> u;
 	int64_t t = benchmark( [&]() {

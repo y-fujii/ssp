@@ -601,6 +601,11 @@ inline array<int32_t, 4> fraction( array<float, 4> const& x ) {
 	return (cast<int32_t>( x ) & 0x7fffff) | 0x800000;
 }
 
+inline array<float, 4> ldexp( array<float, 4> const& x, array<int32_t, 4> const& n ) {
+	// XXX
+	return x * cast<float>( (n + 0x7f) << 23 );
+}
+
 inline array<float, 4> copysign( array<float, 4> const& x, array<float, 4> const& y ) {
 	int32_t mask_y = 1 << 31;
 	int32_t mask_x = ~mask_y;
