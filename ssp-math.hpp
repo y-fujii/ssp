@@ -15,7 +15,7 @@ namespace detail {
 
 template<int N> array<float, N> sin( array<float, N> const& );
 template<int N> array<float, N> cos( array<float, N> const& );
-template<int N> array<float, N> exp( array<float, N> const& );
+//template<int N> array<float, N> exp( array<float, N> const& );
 template<int N> array<float, N> log( array<float, N> const& );
 
 template<>
@@ -28,14 +28,34 @@ inline array<float, 4> cos( array<float, 4> const& x ) {
 	return array<float, 4>( detail::cos_ps( x._packed ) );
 }
 
-template<>
-inline array<float, 4> exp( array<float, 4> const& x ) {
-	return array<float, 4>( detail::exp_ps( x._packed ) );
-}
+//template<>
+//inline array<float, 4> exp( array<float, 4> const& x ) {
+//	return array<float, 4>( detail::exp_ps( x._packed ) );
+//}
 
 template<>
 inline array<float, 4> log( array<float, 4> const& x ) {
 	return array<float, 4>( detail::log_ps( x._packed ) );
+}
+
+template<int N>
+inline array<float, N> exp( array<float, N> const& x ) {
+	static float const ilog2 = 1.0 / std::log( 2.0 );
+
+	array<float, N> n = floor( ilog2 * x + 0.5f );
+	array<float, N> r = x - n * 6.93359375e-1 + n * 2.12194440e-4;
+
+	array<float, N> z =
+		(((((1.9875691500e-4  * r
+		   + 1.3981999507e-3) * r
+		   + 8.3334519073e-3) * r
+		   + 4.1665795894e-2) * r
+		   + 1.6666665459e-1) * r
+		   + 5.0000001201e-1) * (r * r)
+		   + r
+		   + 1.0f;
+
+	return ldexp( z, array<int32_t, N>( n ) );
 }
 
 template<int N>
@@ -83,8 +103,8 @@ inline array<float, N> acos( array<float, N> const& x ) {
 
 template<int N>
 inline array<float, N> atan( array<float, N> const& x ) {
-	static float const tan_3pi_8 = tan( 3.0 * M_PI / 8.0 );
-	static float const tan_1pi_8 = tan( 1.0 * M_PI / 8.0 );
+	static float const tan_3pi_8 = std::tan( 3.0 * M_PI / 8.0 );
+	static float const tan_1pi_8 = std::tan( 1.0 * M_PI / 8.0 );
 
 	array<float, N> a = abs( x );
 	array<int32_t, N> flag0 = a > tan_3pi_8;
