@@ -306,13 +306,17 @@ int64_t benchmark( Func const& f ) {
 int main() {
 	using namespace ssp;
 
-	size_t const N = 1ul << 20;
+	size_t const N = 1ul << 21;
 	printf( "floor:\n" );
 	test_math_func( 1e9f, N, &ssp::floor, (double (*)(double))std::floor );
 	printf( "ceil:\n" );
 	test_math_func( 1e9f, N, &ssp::ceil, (double (*)(double))std::ceil );
+	printf( "sin:\n" );
+	test_math_func( 4096.0f, N, &ssp::sin<4>, (double (*)(double))std::sin );
+	printf( "cos:\n" );
+	test_math_func( 4096.0f, N, &ssp::cos<4>, (double (*)(double))std::cos );
 	printf( "tan:\n" );
-	test_math_func( 4.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
+	test_math_func( 4096.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
 	printf( "asin:\n" );
 	test_math_func( 2.0f, N, &ssp::asin<4>, (double (*)(double))std::asin );
 	printf( "acos:\n" );
