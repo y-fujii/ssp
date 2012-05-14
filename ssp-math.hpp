@@ -13,20 +13,20 @@ namespace detail {
 	#undef USE_SSE2
 }
 
-template<int N> array<float, N> sin( array<float, N> const& );
-template<int N> array<float, N> cos( array<float, N> const& );
+//template<int N> array<float, N> sin( array<float, N> const& );
+//template<int N> array<float, N> cos( array<float, N> const& );
 //template<int N> array<float, N> exp( array<float, N> const& );
 template<int N> array<float, N> log( array<float, N> const& );
 
-template<>
-inline array<float, 4> sin( array<float, 4> const& x ) {
-	return array<float, 4>( detail::sin_ps( x._packed ) );
-}
+//template<>
+//inline array<float, 4> sin( array<float, 4> const& x ) {
+//	return array<float, 4>( detail::sin_ps( x._packed ) );
+//}
 
-template<>
-inline array<float, 4> cos( array<float, 4> const& x ) {
-	return array<float, 4>( detail::cos_ps( x._packed ) );
-}
+//template<>
+//inline array<float, 4> cos( array<float, 4> const& x ) {
+//	return array<float, 4>( detail::cos_ps( x._packed ) );
+//}
 
 //template<>
 //inline array<float, 4> exp( array<float, 4> const& x ) {
@@ -132,7 +132,6 @@ inline array<float, N> atan( array<float, N> const& x ) {
 		       array<float, N>( 0.0f )
 	);
 	z = copysign( z, x );
-
 	return z;
 }
 
@@ -185,15 +184,77 @@ array<float, N> tanh( array<float, N> const& x ) {
 }
 
 template<int N>
-array<float, N> tan( array<float, N> const& x ) {
-	array<int32_t, N> ni = floori( float( 4.0 / M_PI ) * x );
-	ni = ni + (ni & 1);
+void rem_pio4( array<float, N>& r, array<int32_t, N>& n, array<float, N> const& x ) {
+	n = floori( float( 4.0 / M_PI ) * x );
+	n = n + (n & 1);
+	array<float, N> nf( n );
+	r = x - nf * 0.78515625
+	      - nf * 2.4187564849853515625e-4
+	      - nf * 3.77489497744594108e-8;
+}
 
-	array<float, N> nf( ni );
-	array<float, N> r =
-		x - nf * 0.7853851318359375
-		  - nf * 1.30315311253070831298828125e-5
-		  - nf * 3.03855025325309630e-11;
+template<int N>
+array<float, N> sin_core( array<float, N> const& x1, array<float, N> const& x2 ) {
+	array<float, N> z =
+		((- 1.9515295891e-4  * x2
+		  + 8.3321608736e-3) * x2
+		  - 1.6666654611e-1) * x2 * x1
+		  + x1;
+
+	return z;
+}
+
+template<int N>
+array<float, N> cos_core( array<float, N> const&, array<float, N> const& x2 ) {
+	array<float, N> z =
+		((2.443315711809948e-5  * x2
+		- 1.388731625493765e-3) * x2
+		+ 4.166664568298827e-2) * (x2 * x2)
+		- 0.5f * x2
+		+ 1.0f;
+
+	return z;
+}
+
+template<int N>
+array<float, N> sin( array<float, N> const& x ) {
+	array<float, N> r;
+	array<int32_t, N> n;
+	rem_pio4( r, n, x );
+
+	array<float, N> r2 = r * r;
+	array<float, N> z = where( (n & 3) != 0,
+		cos_core( r, r2 ),
+		sin_core( r, r2 )
+	);
+
+	z = where( (n & 4) != 0, -z, +z );
+	z = where( abs( x ) < 8192.0f, z, 0.0f );
+	return z;
+}
+
+template<int N>
+array<float, N> cos( array<float, N> const& x ) {
+	array<float, N> r;
+	array<int32_t, N> n;
+	rem_pio4( r, n, x );
+
+	array<float, N> r2 = r * r;
+	array<float, N> z = where( (n & 3) != 0,
+		sin_core( r, r2 ),
+		cos_core( r, r2 )
+	);
+
+	z = where( ((n + 2) & 4) != 0, -z, +z );
+	z = where( abs( x ) < 8192.0f, z, 0.0f );
+	return z;
+}
+
+template<int N>
+array<float, N> tan( array<float, N> const& x ) {
+	array<float, N> r;
+	array<int32_t, N> n;
+	rem_pio4( r, n, x );
 
 	array<float, N> r2 = r * r;
 	array<float, N> z =
@@ -205,9 +266,8 @@ array<float, N> tan( array<float, N> const& x ) {
 		   + 3.33331568548e-1) * r2 * r
 		   + r;
 
-	z = where( (ni & 2) != 0, -1.0f / z, z );
-	z = where( abs( x ) <= 65536.0f, z, 0.0f );
-
+	z = where( (n & 2) != 0, -1.0f / z, z );
+	z = where( abs( x ) < 8192.0f, z, 0.0f );
 	return z;
 }
 
