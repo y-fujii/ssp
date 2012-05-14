@@ -307,16 +307,26 @@ int main() {
 	using namespace ssp;
 
 	size_t const N = 1ul << 20;
-	test_math_func( 1e9f, N, &ssp::floor, floorf );
-	test_math_func( 1e9f, N, &ssp::ceil, ceilf );
-	test_math_func( 4.0f, N, &ssp::tan<4>, tanf );
-	test_math_func( 2.0f, N, &ssp::asin<4>, asinf );
-	test_math_func( 2.0f, N, &ssp::acos<4>, acosf );
-	test_math_func( 1e3f, N, &ssp::atan<4>, atanf );
-	test_math_func( 2.0f, N, &ssp::sinh<4>, sinhf );
-	test_math_func( 2.0f, N, &ssp::cosh<4>, coshf );
-	test_math_func( 63.0f, N, &ssp::tanh<4>, tanhf );
-	test_math_func( 63.0f, N, &ssp::exp<4>, expf );
+	printf( "floor:\n" );
+	test_math_func( 1e9f, N, &ssp::floor, (double (*)(double))std::floor );
+	printf( "ceil:\n" );
+	test_math_func( 1e9f, N, &ssp::ceil, (double (*)(double))std::ceil );
+	printf( "tan:\n" );
+	test_math_func( 4.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
+	printf( "asin:\n" );
+	test_math_func( 2.0f, N, &ssp::asin<4>, (double (*)(double))std::asin );
+	printf( "acos:\n" );
+	test_math_func( 2.0f, N, &ssp::acos<4>, (double (*)(double))std::acos );
+	printf( "atan:\n" );
+	test_math_func( 1e3f, N, &ssp::atan<4>, (double (*)(double))std::atan );
+	printf( "sinh:\n" );
+	test_math_func( 2.0f, N, &ssp::sinh<4>, (double (*)(double))std::sinh );
+	printf( "cosh:\n" );
+	test_math_func( 2.0f, N, &ssp::cosh<4>, (double (*)(double))std::cosh );
+	printf( "tanh:\n" );
+	test_math_func( 63.0f, N, &ssp::tanh<4>, (double (*)(double))std::tanh );
+	printf( "exp:\n" );
+	test_math_func( 63.0f, N, &ssp::exp<4>, (double (*)(double))std::exp );
 
 	array<float, 4> u;
 	int64_t t = benchmark( [&]() {
