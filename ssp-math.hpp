@@ -70,7 +70,7 @@ inline array<float, N> asin_core( array<float, N> const& x1, array<float, N> con
 		  + 1.6666752422e-1f) * x2 * x1
 		  + x1;
 
-	return where( x2 < 1e-8f, x1, z );
+	return z;
 }
 
 template<int N>
@@ -205,7 +205,6 @@ array<float, N> tan( array<float, N> const& x ) {
 		   + 3.33331568548e-1) * r2 * r
 		   + r;
 
-	z = where( abs( z ) <= 1.0e-4f, r, z );
 	z = where( (ni & 2) != 0, -1.0f / z, z );
 	z = where( abs( x ) <= 65536.0f, z, 0.0f );
 
