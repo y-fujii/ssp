@@ -3,6 +3,8 @@
 #include <ostream>
 #include <iostream>
 #include <random>
+#include <queue>
+#include <tuple>
 #include <stdio.h>
 #include "ssp.hpp"
 #include "ssp-math.hpp"
@@ -261,25 +263,34 @@ float hidoi_float( int n, Rng& rng ) {
 }
 
 template<class F0, class F1>
-int test_math_func( double m, int N, F0 f0, F1 f1 ) {
+void test_math_func( double m, size_t N, F0 f0, F1 f1 ) {
 	using namespace std;
+
+	priority_queue<tuple<double, double>> errors;
+	for( int i = 0; i < 4; ++i ) {
+		errors.push( make_tuple( 0.0, 0.0 ) );
+	}
 
 	int n = log( m ) / log( 2 );
 
 	mt19937 rng;
-	int nerr = 0;
-	for( int i = 0; i < N; ++i ) {
+	for( size_t i = 0; i < N; ++i ) {
 		float x = hidoi_float( n, rng );
 		double r0 = f0( ssp::array<float, 4>( x ) )._data[0];
 		double r1 = f1( x );
-		if( fabs( r0 - r1 ) / max( r0, r1 ) > 3e-7 ) {
-			if( nerr < 16 ) {
-				printf( "f(%e) = %e, %e\n", x, r0, r1 );
-			}
-			++nerr;
-		}
+		if( r0 != r0 && r1 != r1 )
+			continue;
+		double err = fabs( r0 - r1 ) / max( fabs( r0 ), fabs( r1 ) );
+		errors.push( make_tuple( -err, x ) );
+		errors.pop();
 	}
-	return nerr;
+	while( !errors.empty() ) {
+		double err, x;
+		tie( err, x ) = errors.top();
+		printf( "error %e at x = %+e\n", -err, x );
+		errors.pop();
+	}
+	printf( "\n" );
 }
 
 template<class Func>
@@ -295,18 +306,17 @@ int64_t benchmark( Func const& f ) {
 int main() {
 	using namespace ssp;
 
-	int const N = 10000000;
-	std::cout << test_math_func( 1e9f, N, &ssp::floor, floorf ) << std::endl;
-	std::cout << test_math_func( 1e9f, N, &ssp::ceil, ceilf ) << std::endl;
-	std::cout << test_math_func( 4.0f, N, &ssp::tan<4>, tanf ) << std::endl;
-	std::cout << test_math_func( 2.0f, N, &ssp::asin<4>, asinf ) << std::endl;
-	std::cout << test_math_func( 2.0f, N, &ssp::acos<4>, acosf ) << std::endl;
-	std::cout << test_math_func( 1e3f, N, &ssp::atan<4>, atanf ) << std::endl;
-	std::cout << test_math_func( 2.0f, N, &ssp::sinh<4>, sinhf ) << std::endl;
-	std::cout << test_math_func( 2.0f, N, &ssp::cosh<4>, coshf ) << std::endl;
-	std::cout << test_math_func( 1e3f, N, &ssp::tanh<4>, tanhf ) << std::endl;
-	std::cout << test_math_func( 1e3f, N, &ssp::exp<4>, expf ) << std::endl;
-	std::cout << std::endl;
+	size_t const N = 1ul << 20;
+	test_math_func( 1e9f, N, &ssp::floor, floorf );
+	test_math_func( 1e9f, N, &ssp::ceil, ceilf );
+	test_math_func( 4.0f, N, &ssp::tan<4>, tanf );
+	test_math_func( 2.0f, N, &ssp::asin<4>, asinf );
+	test_math_func( 2.0f, N, &ssp::acos<4>, acosf );
+	test_math_func( 1e3f, N, &ssp::atan<4>, atanf );
+	test_math_func( 2.0f, N, &ssp::sinh<4>, sinhf );
+	test_math_func( 2.0f, N, &ssp::cosh<4>, coshf );
+	test_math_func( 63.0f, N, &ssp::tanh<4>, tanhf );
+	test_math_func( 63.0f, N, &ssp::exp<4>, expf );
 
 	array<float, 4> u;
 	int64_t t = benchmark( [&]() {

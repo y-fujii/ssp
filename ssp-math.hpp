@@ -41,9 +41,11 @@ inline array<float, 4> log( array<float, 4> const& x ) {
 template<int N>
 inline array<float, N> exp( array<float, N> const& x ) {
 	static float const ilog2 = 1.0 / std::log( 2.0 );
+	static float const log2_0 = std::ldexp( std::floor( std::ldexp( std::log( 2.0 ), 16 ) ), -16 );
+	static float const log2_1 = std::log( 2.0 ) - log2_0;
 
 	array<float, N> n = floor( ilog2 * x + 0.5f );
-	array<float, N> r = x - n * 6.93359375e-1 + n * 2.12194440e-4;
+	array<float, N> r = x - n * log2_0 - n * log2_1;
 
 	array<float, N> z =
 		(((((1.9875691500e-4  * r
