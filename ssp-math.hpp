@@ -7,37 +7,6 @@
 namespace ssp {
 
 
-namespace detail {
-	#define USE_SSE2
-	#include "sse_mathfun.h"
-	#undef USE_SSE2
-}
-
-//template<int N> array<float, N> sin( array<float, N> const& );
-//template<int N> array<float, N> cos( array<float, N> const& );
-//template<int N> array<float, N> exp( array<float, N> const& );
-template<int N> array<float, N> log( array<float, N> const& );
-
-//template<>
-//inline array<float, 4> sin( array<float, 4> const& x ) {
-//	return array<float, 4>( detail::sin_ps( x._packed ) );
-//}
-
-//template<>
-//inline array<float, 4> cos( array<float, 4> const& x ) {
-//	return array<float, 4>( detail::cos_ps( x._packed ) );
-//}
-
-//template<>
-//inline array<float, 4> exp( array<float, 4> const& x ) {
-//	return array<float, 4>( detail::exp_ps( x._packed ) );
-//}
-
-template<>
-inline array<float, 4> log( array<float, 4> const& x ) {
-	return array<float, 4>( detail::log_ps( x._packed ) );
-}
-
 template<int N>
 inline array<float, N> exp( array<float, N> const& x ) {
 	static float const ilog2 = 1.0 / std::log( 2.0 );
@@ -184,13 +153,18 @@ array<float, N> tanh( array<float, N> const& x ) {
 }
 
 template<int N>
-void rem_pio4( array<float, N>& r, array<int32_t, N>& n, array<float, N> const& x ) {
+void rem_pio4( array<float, N> const& x, array<int32_t, N>& n, array<float, N>& r ) {
 	n = floori( float( 4.0 / M_PI ) * x );
 	n = n + (n & 1);
 	array<float, N> nf( n );
 	r = x - nf * 0.78515625
 	      - nf * 2.4187564849853515625e-4
 	      - nf * 3.77489497744594108e-8;
+	/*
+	r = x - nf * 0.7853851318359375
+	      - nf * 1.30315311253070831298828125e-5
+	      - nf * 3.03855025325309630e-11;
+	*/
 }
 
 template<int N>
@@ -201,6 +175,7 @@ array<float, N> sin_core( array<float, N> const& x1, array<float, N> const& x2 )
 		  - 1.6666654611e-1) * x2 * x1
 		  + x1;
 
+	// z = where( x2 < 1e-8, x1, z );
 	return z;
 }
 
@@ -220,7 +195,7 @@ template<int N>
 array<float, N> sin( array<float, N> const& x ) {
 	array<float, N> r;
 	array<int32_t, N> n;
-	rem_pio4( r, n, x );
+	rem_pio4( x, n, r );
 
 	array<float, N> r2 = r * r;
 	array<float, N> z = where( (n & 3) != 0,
@@ -237,7 +212,7 @@ template<int N>
 array<float, N> cos( array<float, N> const& x ) {
 	array<float, N> r;
 	array<int32_t, N> n;
-	rem_pio4( r, n, x );
+	rem_pio4( x, n, r );
 
 	array<float, N> r2 = r * r;
 	array<float, N> z = where( (n & 3) != 0,
@@ -254,7 +229,7 @@ template<int N>
 array<float, N> tan( array<float, N> const& x ) {
 	array<float, N> r;
 	array<int32_t, N> n;
-	rem_pio4( r, n, x );
+	rem_pio4( x, n, r );
 
 	array<float, N> r2 = r * r;
 	array<float, N> z =
@@ -268,6 +243,42 @@ array<float, N> tan( array<float, N> const& x ) {
 
 	z = where( (n & 2) != 0, -1.0f / z, z );
 	z = where( abs( x ) < 8192.0f, z, 0.0f );
+	return z;
+}
+
+template<int N>
+array<float, N> log( array<float, N> const& x ) {
+	static float const sqrt2h = std::sqrt( 2.0 ) / 2.0;
+	static float const log2_0 = std::ldexp( std::floor( std::ldexp( std::log( 2.0 ), 16 ) ), -16 );
+	static float const log2_1 = std::log( 2.0 ) - log2_0;
+
+	array<int32_t, N> n;
+	array<float, N> f = frexp( x, &n );
+	n = where( f < sqrt2h, n - 1, n );
+	f = where( f < sqrt2h, f + f, f ) - 1.0f;
+
+	array<float, N> f2 = f * f;
+	array<float, N> z =
+		((((((((7.0376836292e-2  * f
+	          - 1.1514610310e-1) * f
+	          + 1.1676998740e-1) * f
+	          - 1.2420140846e-1) * f
+	          + 1.4249322787e-1) * f
+	          - 1.6668057665e-1) * f
+	          + 2.0000714765e-1) * f
+	          - 2.4999993993e-1) * f
+	          + 3.3333331174e-1) * f * f2;
+
+	array<float, N> e( n );
+	z = z + log2_1 * e;
+	z = z - 0.5f * f2 + f;
+	z = z + log2_0 * e;
+
+	z = where(
+		x <  0.0f, array<float, N>( +0.0f / +0.0f ),
+		x == 0.0f, array<float, N>( -1.0f / +0.0f ),
+		z
+	);
 	return z;
 }
 

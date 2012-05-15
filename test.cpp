@@ -3,6 +3,8 @@
 #include <ostream>
 #include <iostream>
 #include <random>
+#include <algorithm>
+#include <limits>
 #include <queue>
 #include <tuple>
 #include <stdio.h>
@@ -252,7 +254,7 @@ float hidoi_float( int n, Rng& rng ) {
 	using namespace std;
 
 	static uint32_t const mask = 0xff << 23;
-	uniform_int_distribution<int> fdist( 0, n + 0x7f );
+	uniform_int_distribution<int> fdist( 1, n + 0x7f );
 
 	union {
 		float f;
@@ -278,11 +280,21 @@ void test_math_func( double m, size_t N, F0 f0, F1 f1 ) {
 		float x = hidoi_float( n, rng );
 		double r0 = f0( ssp::array<float, 4>( x ) )._data[0];
 		double r1 = f1( x );
-		if( r0 != r0 && r1 != r1 )
+		if( r0 != r0 && r1 != r1 ) {
 			continue;
-		double err = fabs( r0 - r1 ) / max( fabs( r0 ), fabs( r1 ) );
-		errors.push( make_tuple( -err, x ) );
-		errors.pop();
+		}
+		if( r0 == 0.0 && r1 == 0.0 && signbit( r0 ) == signbit( r1 ) ) {
+			continue;
+		}
+		if( r0 == r0 && r1 == r1 ) {
+			r0 = min<double>( max<double>( r0, -numeric_limits<float>::max() ), +numeric_limits<float>::max() );
+			r1 = min<double>( max<double>( r1, -numeric_limits<float>::max() ), +numeric_limits<float>::max() );
+			double err = fabs( r0 - r1 ) / max<double>( fabs( r1 ), numeric_limits<float>::min() );
+			errors.push( make_tuple( -err, x ) );
+			errors.pop();
+			continue;
+		}
+		printf( "error at x = %+e\n", x );
 	}
 	while( !errors.empty() ) {
 		double err, x;
@@ -306,17 +318,17 @@ int64_t benchmark( Func const& f ) {
 int main() {
 	using namespace ssp;
 
-	size_t const N = 1ul << 21;
+	size_t const N = 1ul << 26;
 	printf( "floor:\n" );
 	test_math_func( 1e9f, N, &ssp::floor, (double (*)(double))std::floor );
 	printf( "ceil:\n" );
 	test_math_func( 1e9f, N, &ssp::ceil, (double (*)(double))std::ceil );
 	printf( "sin:\n" );
-	test_math_func( 4096.0f, N, &ssp::sin<4>, (double (*)(double))std::sin );
+	test_math_func( 256.0f, N, &ssp::sin<4>, (double (*)(double))std::sin );
 	printf( "cos:\n" );
-	test_math_func( 4096.0f, N, &ssp::cos<4>, (double (*)(double))std::cos );
+	test_math_func( 256.0f, N, &ssp::cos<4>, (double (*)(double))std::cos );
 	printf( "tan:\n" );
-	test_math_func( 4096.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
+	test_math_func( 256.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
 	printf( "asin:\n" );
 	test_math_func( 2.0f, N, &ssp::asin<4>, (double (*)(double))std::asin );
 	printf( "acos:\n" );
@@ -331,6 +343,8 @@ int main() {
 	test_math_func( 63.0f, N, &ssp::tanh<4>, (double (*)(double))std::tanh );
 	printf( "exp:\n" );
 	test_math_func( 63.0f, N, &ssp::exp<4>, (double (*)(double))std::exp );
+	printf( "log:\n" );
+	test_math_func( 1e30f, N, &ssp::log<4>, (double (*)(double))std::log );
 
 	array<float, 4> u;
 	int64_t t = benchmark( [&]() {
