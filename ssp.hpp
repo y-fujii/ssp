@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iterator>
+#include <limits>
 #include <cstddef>
 #include <cassert>
 #include <emmintrin.h>
@@ -540,15 +541,6 @@ inline array<float, 4> operator/( array<float, 4> const& x, array<float, 4> cons
 	return array<float, 4>( z );
 }
 
-inline array<float, 4> operator/( one, array<float, 4> const& y ) {
-#if defined( __FAST_MATH__ )
-	array<float, 4> r = _mm_rcp_ps( y._packed );
-	return (r + r) - y * (r * r);
-#else
-	return array<float, 4>( I ) / y;
-#endif
-}
-
 inline array<int32_t, 4> operator==( array<float, 4> const& x, array<float, 4> const& y ) {
 	__m128i z = _mm_castps_si128( _mm_cmpeq_ps( x._packed, y._packed ) );
 	return array<int32_t, 4>( z );
@@ -589,16 +581,18 @@ inline array<float, 4> abs( array<float, 4> const& x ) {
 	return cast<float>( cast<int32_t>( x ) & mask );
 }
 
-inline array<int32_t, 4> sign( array<float, 4> const& x ) {
-	return ((cast<int32_t>( x ) >> 30) & 0x02) - 1;
+inline array<int32_t, 4> signbit( array<float, 4> const& x ) {
+	return (cast<int32_t>( x ) >> 31) & 0x1;
 }
 
-inline array<int32_t, 4> exponent( array<float, 4> const& x ) {
-	return ((cast<int32_t>( x ) >> 23) & 0xff) - 0x7f;
-}
+inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) {
+	// XXX: denorm
+	array<int32_t, 4> xi = cast<int32_t>( x );
+	array<int32_t, 4> e = ((xi >> 23) & 0xff) - 0x7e;
+	array<int32_t, 4> f = (xi & 0x007fffff) | (0x7e << 23);
 
-inline array<int32_t, 4> fraction( array<float, 4> const& x ) {
-	return (cast<int32_t>( x ) & 0x7fffff) | 0x800000;
+	*_e = e;
+	return cast<float>( f );
 }
 
 inline array<float, 4> ldexp( array<float, 4> const& x, array<int32_t, 4> const& n ) {
@@ -615,10 +609,11 @@ inline array<float, 4> copysign( array<float, 4> const& x, array<float, 4> const
 }
 
 inline array<float, 4> truncate( array<float, 4> const& x ) {
-	array<int32_t, 4> e = exponent( x );
+	array<int32_t, 4> e;
+	frexp( x, &e );
 	return where(
-		e <  0, array<float, 4>( +0.0f ),
-		e < 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (23 - e)) ),
+		e <=  0, array<float, 4>( +0.0f ),
+		e <= 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (24 - e)) ),
 		        x // include NaN
 	);
 }
