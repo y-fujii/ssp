@@ -587,11 +587,13 @@ inline array<int32_t, 4> signbit( array<float, 4> const& x ) {
 }
 
 inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) {
+	array<int32_t, 4> is_nonzero = (x != 0.0f);
+
 	array<int32_t, 4> xi = bitcast<int32_t>( x );
 	array<int32_t, 4> e = (xi >> 23) & 0xff;
 	array<int32_t, 4> f = xi & 0x807fffff;
 
-	array<int32_t, 4> is_denorm = (e == 0x00 & x != 0.0f);
+	array<int32_t, 4> is_denorm = (e == 0x00 & is_nonzero);
 	if( any_of( is_denorm ) ) {
 		array<int32_t, 4> xb = bitcast<int32_t>( x * 16777216.0f );
 		e = where( is_denorm, ((xb >> 23) & 0xff) - 24, e );
@@ -607,7 +609,7 @@ inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) 
 		ff = where( is_infnan, x, ff );
 	}
 
-	*_e = where( x == 0.0f, 0, ee );
+	*_e = where( is_nonzero, ee, 0 );
 	return ff;
 }
 
