@@ -591,15 +591,24 @@ inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) 
 	array<int32_t, 4> e = (xi >> 23) & 0xff;
 	array<int32_t, 4> f = xi & 0x807fffff;
 
-	array<int32_t, 4> is_denorm = (e == 0);
+	array<int32_t, 4> is_denorm = (e == 0x00 & x != 0.0f);
 	if( any_of( is_denorm ) ) {
 		array<int32_t, 4> xb = bitcast<int32_t>( x * 16777216.0f );
 		e = where( is_denorm, ((xb >> 23) & 0xff) - 24, e );
 		f = where( is_denorm, xb & 0x807fffff, f );
 	}
 
-	*_e = e - 0x7e;
-	return bitcast<float>( f | (0x7e << 23) );
+	array<int32_t, 4> ee = e - 0x7e;
+	array<float, 4>   ff = bitcast<float>( f | (0x7e << 23) );
+
+	array<int32_t, 4> is_infnan = (e == 0xff);
+	if( any_of( is_infnan ) ) {
+		ee = where( is_infnan, 0, ee );
+		ff = where( is_infnan, x, ff );
+	}
+
+	*_e = where( x == 0.0f, 0, ee );
+	return ff;
 }
 
 inline array<float, 4> ldexp( array<float, 4> const& x, array<int32_t, 4> const& n ) {
