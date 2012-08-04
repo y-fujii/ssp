@@ -254,7 +254,7 @@ float hidoi_float( int n, Rng& rng ) {
 	using namespace std;
 
 	static uint32_t const mask = 0xff << 23;
-	uniform_int_distribution<int> fdist( 1, n + 0x7f );
+	uniform_int_distribution<int> fdist( 0, n + 0x7f );
 
 	union {
 		float f;
@@ -318,63 +318,38 @@ int64_t benchmark( Func const& f ) {
 int main() {
 	using namespace ssp;
 
-	size_t const N = 1ul << 26;
-	printf( "floor:\n" );
-	test_math_func( 1e9f, N, &ssp::floor, (double (*)(double))std::floor );
-	printf( "ceil:\n" );
-	test_math_func( 1e9f, N, &ssp::ceil, (double (*)(double))std::ceil );
-	printf( "sin:\n" );
-	test_math_func( 256.0f, N, &ssp::sin<4>, (double (*)(double))std::sin );
-	printf( "cos:\n" );
-	test_math_func( 256.0f, N, &ssp::cos<4>, (double (*)(double))std::cos );
-	printf( "tan:\n" );
-	test_math_func( 256.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
-	printf( "asin:\n" );
-	test_math_func( 2.0f, N, &ssp::asin<4>, (double (*)(double))std::asin );
-	printf( "acos:\n" );
-	test_math_func( 2.0f, N, &ssp::acos<4>, (double (*)(double))std::acos );
-	printf( "atan:\n" );
-	test_math_func( 1e3f, N, &ssp::atan<4>, (double (*)(double))std::atan );
-	printf( "sinh:\n" );
-	test_math_func( 2.0f, N, &ssp::sinh<4>, (double (*)(double))std::sinh );
-	printf( "cosh:\n" );
-	test_math_func( 2.0f, N, &ssp::cosh<4>, (double (*)(double))std::cosh );
-	printf( "tanh:\n" );
-	test_math_func( 63.0f, N, &ssp::tanh<4>, (double (*)(double))std::tanh );
-	printf( "exp:\n" );
-	test_math_func( 63.0f, N, &ssp::exp<4>, (double (*)(double))std::exp );
-	printf( "log:\n" );
-	test_math_func( 1e30f, N, &ssp::log<4>, (double (*)(double))std::log );
-
-	array<float, 4> u;
-	int64_t t = benchmark( [&]() {
-		float x0 = -1.0f;
-		float x1 = +1.0f;
-		size_t const N = 10000000;
-		//array<float, 4> x = 0.0f;
-		float r = 0.0f;
-		for( size_t i = 0; i < N; ++i ) {
-			float x = ((x1 - x0) / N) * i + x0;
-			r += atanf( x );
-		}
-		u = r;
+	int64_t t = benchmark( []() {
+		size_t const N = 1ul << 24;
+		printf( "floor:\n" );
+		test_math_func( 1e9f, N, &ssp::floor, (double (*)(double))std::floor );
+		printf( "ceil:\n" );
+		test_math_func( 1e9f, N, &ssp::ceil, (double (*)(double))std::ceil );
+		printf( "sin:\n" );
+		test_math_func( 256.0f, N, &ssp::sin<4>, (double (*)(double))std::sin );
+		printf( "cos:\n" );
+		test_math_func( 256.0f, N, &ssp::cos<4>, (double (*)(double))std::cos );
+		printf( "tan:\n" );
+		test_math_func( 256.0f, N, &ssp::tan<4>, (double (*)(double))std::tan );
+		printf( "asin:\n" );
+		test_math_func( 2.0f, N, &ssp::asin<4>, (double (*)(double))std::asin );
+		printf( "acos:\n" );
+		test_math_func( 2.0f, N, &ssp::acos<4>, (double (*)(double))std::acos );
+		printf( "atan:\n" );
+		test_math_func( 1e3f, N, &ssp::atan<4>, (double (*)(double))std::atan );
+		printf( "sinh:\n" );
+		test_math_func( 2.0f, N, &ssp::sinh<4>, (double (*)(double))std::sinh );
+		printf( "cosh:\n" );
+		test_math_func( 2.0f, N, &ssp::cosh<4>, (double (*)(double))std::cosh );
+		printf( "tanh:\n" );
+		test_math_func( 63.0f, N, &ssp::tanh<4>, (double (*)(double))std::tanh );
+		printf( "exp:\n" );
+		test_math_func( 63.0f, N, &ssp::exp<4>, (double (*)(double))std::exp );
+		printf( "log:\n" );
+		test_math_func( 1e30f, N, &ssp::log<4>, (double (*)(double))std::log );
 	} );
-	std::cout << u << std::endl;
-	printf( "  tanh: %lu\n", t );
 
-	t = benchmark( [&]() {
-		array<float, 4> x0 = -1.0f;
-		array<float, 4> x1 = +1.0f;
-		size_t const N = 10000000;
-		array<float, 4> r = 0.0f;
-		for( size_t i = 0; i < N; ++i ) {
-			array<float, 4> x = ((x1 - x0) / N) * i + x0;
-			r = r + ssp::atan( x );
-		}
-		u = r;
-	} );
-	std::cout << u << std::endl;
-	printf( "  tanh: %lu\n", t );
+	std::cout << t << std::endl;
+
 
 	std::vector<int32_t> dst_s( w * h );
 	std::vector<int32_t> dst_p( w * h );
