@@ -1,3 +1,4 @@
+// by Yasuhiro Fujii <y-fujii@mimosa-pudica.net>, public domain
 #pragma once
 
 #include <iterator>
@@ -244,15 +245,15 @@ struct reference<int32_t, 4> {
 		int32_t* _data[4];
 };
 
-template<class T, class U, int N> array<T, N> cast( array<U, N> const& );
+template<class T, class U, int N> array<T, N> bitcast( array<U, N> const& );
 
 template<>
-array<float, 4> cast<float>( array<int32_t, 4> const& x ) {
+array<float, 4> bitcast<float>( array<int32_t, 4> const& x ) {
 	return array<float, 4>( _mm_castsi128_ps( x._packed ) );
 }
 
 template<>
-array<int32_t, 4> cast<int32_t>( array<float, 4> const& x ) {
+array<int32_t, 4> bitcast<int32_t>( array<float, 4> const& x ) {
 	return array<int32_t, 4>( _mm_castps_si128( x._packed ) );
 }
 
@@ -293,10 +294,10 @@ inline array<float, 4> where( array<int32_t, 4> const& c, array<float, 4> const&
 #if defined( __SSE4_1__ )
 	__m128 z = _mm_blendv_ps( y._packed, x._packed, _mm_castsi128_ps( c._packed ) );
 #else
-	__m128 z = _mm_castsi128_ps( _mm_or_si128(
-		_mm_and_si128   ( c._packed, _mm_castps_si128( x._packed ) ),
-		_mm_andnot_si128( c._packed, _mm_castps_si128( y._packed ) )
-	) );
+	__m128 z = _mm_or_ps(
+		_mm_and_ps   ( _mm_castsi128_ps( c._packed ), x._packed ),
+		_mm_andnot_ps( _mm_castsi128_ps( c._packed ), y._packed )
+	);
 #endif
 	return array<float, 4>( z );
 }
@@ -578,33 +579,39 @@ inline array<float, 4> sqrt( array<float, 4> const& x ) {
 
 inline array<float, 4> abs( array<float, 4> const& x ) {
 	int32_t mask = ~(1 << 31);
-	return cast<float>( cast<int32_t>( x ) & mask );
+	return bitcast<float>( bitcast<int32_t>( x ) & mask );
 }
 
 inline array<int32_t, 4> signbit( array<float, 4> const& x ) {
-	return (cast<int32_t>( x ) >> 31) & 0x1;
+	return (bitcast<int32_t>( x ) >> 31) & 0x1;
 }
 
 inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) {
-	// XXX: denorm
-	array<int32_t, 4> xi = cast<int32_t>( x );
-	array<int32_t, 4> e = ((xi >> 23) & 0xff) - 0x7e;
-	array<int32_t, 4> f = (xi & 0x007fffff) | (0x7e << 23);
+	array<int32_t, 4> xi = bitcast<int32_t>( x );
+	array<int32_t, 4> e = (xi >> 23) & 0xff;
+	array<int32_t, 4> f = xi & 0x807fffff;
 
-	*_e = e;
-	return cast<float>( f );
+	array<int32_t, 4> isDenorm = (e == 0);
+	if( any_of( isDenorm ) ) {
+		array<int32_t, 4> xb = bitcast<int32_t>( x * 16777216.0f );
+		e = where( isDenorm, ((xb >> 23) & 0xff) - 24, e );
+		f = where( isDenorm, xb & 0x807fffff, f );
+	}
+
+	*_e = e - 0x7e;
+	return bitcast<float>( f | (0x7e << 23) );
 }
 
 inline array<float, 4> ldexp( array<float, 4> const& x, array<int32_t, 4> const& n ) {
 	// XXX
-	return x * cast<float>( (n + 0x7f) << 23 );
+	return x * bitcast<float>( (n + 0x7f) << 23 );
 }
 
 inline array<float, 4> copysign( array<float, 4> const& x, array<float, 4> const& y ) {
 	int32_t mask_y = 1 << 31;
 	int32_t mask_x = ~mask_y;
-	return cast<float>(
-		(cast<int32_t>( x ) & mask_x) | (cast<int32_t>( y ) & mask_y)
+	return bitcast<float>(
+		(bitcast<int32_t>( x ) & mask_x) | (bitcast<int32_t>( y ) & mask_y)
 	);
 }
 
@@ -613,7 +620,7 @@ inline array<float, 4> truncate( array<float, 4> const& x ) {
 	frexp( x, &e );
 	return where(
 		e <=  0, array<float, 4>( +0.0f ),
-		e <= 24, cast<float>( cast<int32_t>( x ) & ((e == e) << (24 - e)) ),
+		e <= 24, bitcast<float>( bitcast<int32_t>( x ) & ((e == e) << (24 - e)) ),
 		        x // include NaN
 	);
 }

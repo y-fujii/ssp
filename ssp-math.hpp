@@ -1,3 +1,9 @@
+// by Yasuhiro Fujii <y-fujii@mimosa-pudica.net>, public domain
+//
+// Most of the numerical methods and the coefficients used in this source code
+// are from Cephes Mathematical Library, written by Stephen L. Moshier et al.
+//     * http://www.moshier.net/#Cephes
+//     * http://www.netlib.org/cephes/
 #pragma once
 
 #include <limits>
@@ -17,12 +23,12 @@ inline array<float, N> exp( array<float, N> const& x ) {
 	array<float, N> r = x - n * log2_0 - n * log2_1;
 
 	array<float, N> z =
-		(((((1.9875691500e-4  * r
-		   + 1.3981999507e-3) * r
-		   + 8.3334519073e-3) * r
-		   + 4.1665795894e-2) * r
-		   + 1.6666665459e-1) * r
-		   + 5.0000001201e-1) * (r * r)
+		(((((1.9875691500e-4f  * r
+		   + 1.3981999507e-3f) * r
+		   + 8.3334519073e-3f) * r
+		   + 4.1665795894e-2f) * r
+		   + 1.6666665459e-1f) * r
+		   + 5.0000001201e-1f) * (r * r)
 		   + r
 		   + 1.0f;
 
@@ -138,11 +144,11 @@ template<int N>
 array<float, N> tanh( array<float, N> const& x ) {
 	array<float, N> x2 = x * x;
 	array<float, N> z0 =
-		((((- 5.70498872745e-3  * x2
-		    + 2.06390887954e-2) * x2
-		    - 5.37397155531e-2) * x2
-		    + 1.33314422036e-1) * x2
-		    - 3.33332819422e-1) * x2 * x
+		((((- 5.70498872745e-3f  * x2
+		    + 2.06390887954e-2f) * x2
+		    - 5.37397155531e-2f) * x2
+		    + 1.33314422036e-1f) * x2
+		    - 3.33332819422e-1f) * x2 * x
 		    + x;
 
 	array<float, N> a = abs( x );
@@ -157,22 +163,22 @@ void rem_pio4( array<float, N> const& x, array<int32_t, N>& n, array<float, N>& 
 	n = floori( float( 4.0 / M_PI ) * x );
 	n = n + (n & 1);
 	array<float, N> nf( n );
-	r = x - nf * 0.78515625
-	      - nf * 2.4187564849853515625e-4
-	      - nf * 3.77489497744594108e-8;
+	r = x - nf * 0.78515625f
+	      - nf * 2.4187564849853515625e-4f
+	      - nf * 3.77489497744594108e-8f;
 	/*
-	r = x - nf * 0.7853851318359375
-	      - nf * 1.30315311253070831298828125e-5
-	      - nf * 3.03855025325309630e-11;
+	r = x - nf * 0.7853851318359375f
+	      - nf * 1.30315311253070831298828125e-5f
+	      - nf * 3.03855025325309630e-11f;
 	*/
 }
 
 template<int N>
 array<float, N> sin_core( array<float, N> const& x1, array<float, N> const& x2 ) {
 	array<float, N> z =
-		((- 1.9515295891e-4  * x2
-		  + 8.3321608736e-3) * x2
-		  - 1.6666654611e-1) * x2 * x1
+		((- 1.9515295891e-4f  * x2
+		  + 8.3321608736e-3f) * x2
+		  - 1.6666654611e-1f) * x2 * x1
 		  + x1;
 
 	// z = where( x2 < 1e-8, x1, z );
@@ -182,9 +188,9 @@ array<float, N> sin_core( array<float, N> const& x1, array<float, N> const& x2 )
 template<int N>
 array<float, N> cos_core( array<float, N> const&, array<float, N> const& x2 ) {
 	array<float, N> z =
-		((2.443315711809948e-5  * x2
-		- 1.388731625493765e-3) * x2
-		+ 4.166664568298827e-2) * (x2 * x2)
+		((2.443315711809948e-5f  * x2
+		- 1.388731625493765e-3f) * x2
+		+ 4.166664568298827e-2f) * (x2 * x2)
 		- 0.5f * x2
 		+ 1.0f;
 
@@ -233,12 +239,12 @@ array<float, N> tan( array<float, N> const& x ) {
 
 	array<float, N> r2 = r * r;
 	array<float, N> z =
-		(((((9.38540185543e-3  * r2
-		   + 3.11992232697e-3) * r2
-		   + 2.44301354525e-2) * r2
-		   + 5.34112807005e-2) * r2
-		   + 1.33387994085e-1) * r2
-		   + 3.33331568548e-1) * r2 * r
+		(((((9.38540185543e-3f  * r2
+		   + 3.11992232697e-3f) * r2
+		   + 2.44301354525e-2f) * r2
+		   + 5.34112807005e-2f) * r2
+		   + 1.33387994085e-1f) * r2
+		   + 3.33331568548e-1f) * r2 * r
 		   + r;
 
 	z = where( (n & 2) != 0, -1.0f / z, z );
@@ -259,15 +265,15 @@ array<float, N> log( array<float, N> const& x ) {
 
 	array<float, N> f2 = f * f;
 	array<float, N> z =
-		((((((((7.0376836292e-2  * f
-	          - 1.1514610310e-1) * f
-	          + 1.1676998740e-1) * f
-	          - 1.2420140846e-1) * f
-	          + 1.4249322787e-1) * f
-	          - 1.6668057665e-1) * f
-	          + 2.0000714765e-1) * f
-	          - 2.4999993993e-1) * f
-	          + 3.3333331174e-1) * f * f2;
+		((((((((7.0376836292e-2f  * f
+	          - 1.1514610310e-1f) * f
+	          + 1.1676998740e-1f) * f
+	          - 1.2420140846e-1f) * f
+	          + 1.4249322787e-1f) * f
+	          - 1.6668057665e-1f) * f
+	          + 2.0000714765e-1f) * f
+	          - 2.4999993993e-1f) * f
+	          + 3.3333331174e-1f) * f * f2;
 
 	array<float, N> e( n );
 	z = z + log2_1 * e;
