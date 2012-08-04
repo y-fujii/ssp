@@ -591,11 +591,11 @@ inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) 
 	array<int32_t, 4> e = (xi >> 23) & 0xff;
 	array<int32_t, 4> f = xi & 0x807fffff;
 
-	array<int32_t, 4> isDenorm = (e == 0);
-	if( any_of( isDenorm ) ) {
+	array<int32_t, 4> is_denorm = (e == 0);
+	if( any_of( is_denorm ) ) {
 		array<int32_t, 4> xb = bitcast<int32_t>( x * 16777216.0f );
-		e = where( isDenorm, ((xb >> 23) & 0xff) - 24, e );
-		f = where( isDenorm, xb & 0x807fffff, f );
+		e = where( is_denorm, ((xb >> 23) & 0xff) - 24, e );
+		f = where( is_denorm, xb & 0x807fffff, f );
 	}
 
 	*_e = e - 0x7e;
