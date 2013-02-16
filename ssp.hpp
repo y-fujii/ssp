@@ -593,7 +593,7 @@ inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) 
 	array<int32_t, 4> e = (xi >> 23) & 0xff;
 	array<int32_t, 4> f = xi & 0x807fffff;
 
-	array<int32_t, 4> is_denorm = (e == 0x00 & is_nonzero);
+	array<int32_t, 4> is_denorm = (e == 0x00) & is_nonzero;
 	if( any_of( is_denorm ) ) {
 		array<int32_t, 4> xb = bitcast<int32_t>( x * 16777216.0f );
 		e = where( is_denorm, ((xb >> 23) & 0xff) - 24, e );
@@ -615,7 +615,17 @@ inline array<float, 4> frexp( array<float, 4> const& x, array<int32_t, 4>* _e ) 
 
 inline array<float, 4> ldexp( array<float, 4> const& x, array<int32_t, 4> const& n ) {
 	// XXX
-	return x * bitcast<float>( (n + 0x7f) << 23 );
+	if( all_of( (-0x7f < n) & (n < 0x80) ) ) {
+		return x * bitcast<float>( (n + 0x7f) << 23 );
+	}
+	else {
+		return array<float, 4>(
+			std::ldexp( x._data[0], n._data[0] ),
+			std::ldexp( x._data[1], n._data[1] ),
+			std::ldexp( x._data[2], n._data[2] ),
+			std::ldexp( x._data[3], n._data[3] )
+		);
+	}
 }
 
 inline array<float, 4> copysign( array<float, 4> const& x, array<float, 4> const& y ) {
