@@ -1,4 +1,4 @@
-// by Yasuhiro Fujii <y-fujii@mimosa-pudica.net>, public domain
+// by Yasuhiro Fujii <y-fujii at mimosa-pudica.net>, public domain
 #pragma once
 
 #include <iterator>
