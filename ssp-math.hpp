@@ -1,4 +1,4 @@
-// by Yasuhiro Fujii <y-fujii@mimosa-pudica.net>, public domain
+// by Yasuhiro Fujii <y-fujii at mimosa-pudica.net>, public domain
 //
 // Most of the numerical methods and the coefficients used in this source code
 // are from Cephes Mathematical Library, written by Stephen L. Moshier et al.
